@@ -227,56 +227,6 @@ pub fn search(q: &SearchQuery) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
-/// Facet counts for UI filters.
-pub fn facet_counts() -> Result<FacetSummary, String> {
-    let path = catalog_path();
-    if !path.exists() {
-        return Ok(FacetSummary::default());
-    }
-    let conn = Connection::open(&path).map_err(|e| format!("open catalog: {e}"))?;
-    Ok(FacetSummary {
-        packs: count_group(&conn, "pack_id")?,
-        tiers: count_group(&conn, "tier")?,
-        storage: count_group(&conn, "storage")?,
-        outcomes: count_group(&conn, "last_outcome")?,
-        subject_classes: count_group(&conn, "subject_class")?,
-        total: conn
-            .query_row("SELECT COUNT(*) FROM prompts", [], |r| r.get(0))
-            .unwrap_or(0),
-    })
-}
-
-fn count_group(conn: &Connection, col: &str) -> Result<Vec<(String, i64)>, String> {
-    // col is internal only
-    let sql = format!(
-        "SELECT {col}, COUNT(*) FROM prompts GROUP BY {col} ORDER BY COUNT(*) DESC"
-    );
-    let mut stmt = conn.prepare(&sql).map_err(|e| format!("facet {col}: {e}"))?;
-    let rows = stmt
-        .query_map([], |row| {
-            let k: String = row.get(0)?;
-            let n: i64 = row.get(1)?;
-            Ok((k, n))
-        })
-        .map_err(|e| format!("facet map: {e}"))?;
-    let mut out = vec![];
-    for r in rows {
-        out.push(r.map_err(|e| format!("facet row: {e}"))?);
-    }
-    Ok(out)
-}
-
-#[derive(Debug, Clone, Default)]
-#[allow(dead_code)] // facets available for UI / future filters
-pub struct FacetSummary {
-    pub packs: Vec<(String, i64)>,
-    pub tiers: Vec<(String, i64)>,
-    pub storage: Vec<(String, i64)>,
-    pub outcomes: Vec<(String, i64)>,
-    pub subject_classes: Vec<(String, i64)>,
-    pub total: i64,
-}
-
 /// Ensure catalog exists for a library (no-op if already current-ish).
 pub fn ensure_index(lib: &Library) -> Result<(), String> {
     let path = catalog_path();

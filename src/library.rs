@@ -38,14 +38,6 @@ pub fn packs_dir() -> PathBuf {
     data_dir().join("packs")
 }
 
-pub fn styles_path() -> PathBuf {
-    data_dir().join("styles.json")
-}
-
-pub fn flora_path() -> PathBuf {
-    data_dir().join("flora.json")
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct Skeleton {
     #[serde(default)]
@@ -229,10 +221,6 @@ impl Default for Library {
     }
 }
 
-pub fn rework_count(lib: &Library) -> usize {
-    lib.prompts.iter().filter(|p| p.needs_rework).count()
-}
-
 /// Classify a prompt for faceted search.
 pub fn infer_subject_class(p: &PromptEntry) -> String {
     if let Some(sc) = &p.subject_class {
@@ -286,59 +274,6 @@ pub fn infer_subject_class(p: &PromptEntry) -> String {
         return "character".into();
     }
     "other".into()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-pub struct StylePack {
-    pub id: String,
-    pub name: String,
-    #[serde(default)]
-    pub tags: Vec<String>,
-    #[serde(default)]
-    pub phrases: Vec<String>,
-    #[serde(default)]
-    pub notes: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-pub struct StylesFile {
-    #[serde(default)]
-    pub version: u32,
-    #[serde(default)]
-    pub styles: Vec<StylePack>,
-    #[serde(default)]
-    pub media: Vec<String>,
-    #[serde(default)]
-    pub lighting: Vec<String>,
-    #[serde(default)]
-    pub composition: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct FloraFragment {
-    pub id: String,
-    pub text: String,
-    pub slot: String,
-    #[serde(default)]
-    pub tags: Vec<String>,
-    #[serde(default)]
-    pub style_affinity: Vec<String>,
-    #[serde(default = "default_pool")]
-    pub pool: String,
-    #[serde(default)]
-    pub weight: i32,
-}
-
-fn default_pool() -> String {
-    "experimental".into()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-pub struct FloraFile {
-    #[serde(default)]
-    pub version: u32,
-    #[serde(default)]
-    pub fragments: Vec<FloraFragment>,
 }
 
 pub fn now_iso() -> String {
@@ -672,194 +607,6 @@ pub fn save_library(lib: &Library) -> Result<(), String> {
     Ok(())
 }
 
-pub fn load_styles() -> Result<StylesFile, String> {
-    let path = styles_path();
-    if !path.exists() {
-        return Ok(StylesFile::default());
-    }
-    let raw = fs::read_to_string(&path).map_err(|e| format!("read styles: {e}"))?;
-    serde_json::from_str(&raw).map_err(|e| format!("parse styles: {e}"))
-}
-
-pub fn load_flora() -> Result<FloraFile, String> {
-    let path = flora_path();
-    if !path.exists() {
-        return Ok(FloraFile::default());
-    }
-    let raw = fs::read_to_string(&path).map_err(|e| format!("read flora: {e}"))?;
-    serde_json::from_str(&raw).map_err(|e| format!("parse flora: {e}"))
-}
-
-pub fn save_flora(flora: &FloraFile) -> Result<(), String> {
-    write_json_pretty(&flora_path(), flora)
-}
-
-/// Near-duplicate detection: Jaccard of clause tokens.
-pub fn find_cousins(lib: &Library, prompt: &str, exclude_id: Option<&str>) -> Vec<(String, String, f32)> {
-    let needle = clause_set(prompt);
-    if needle.is_empty() {
-        return vec![];
-    }
-    let mut hits = vec![];
-    for p in &lib.prompts {
-        if exclude_id.is_some_and(|id| id == p.id) {
-            continue;
-        }
-        let other = clause_set(&p.prompt);
-        let sim = jaccard(&needle, &other);
-        if sim >= 0.55 {
-            hits.push((p.id.clone(), p.title.clone(), sim));
-        }
-    }
-    hits.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
-    hits
-}
-
-fn clause_set(prompt: &str) -> HashSet<String> {
-    prompt
-        .split(|c: char| c == ',' || c == ';')
-        .map(|s| {
-            s.trim()
-                .to_lowercase()
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
-        .filter(|s| !s.is_empty() && s.len() > 3)
-        .collect()
-}
-
-fn jaccard(a: &HashSet<String>, b: &HashSet<String>) -> f32 {
-    if a.is_empty() || b.is_empty() {
-        return 0.0;
-    }
-    let inter = a.intersection(b).count() as f32;
-    let union = a.union(b).count() as f32;
-    if union == 0.0 {
-        0.0
-    } else {
-        inter / union
-    }
-}
-
-pub fn bump_flora_for_prompt(flora: &mut FloraFile, fragment_ids: &[String], delta: i32) {
-    for id in fragment_ids {
-        if let Some(f) = flora.fragments.iter_mut().find(|x| &x.id == id) {
-            f.weight = (f.weight + delta).clamp(1, 50);
-        }
-    }
-}
-
-pub fn pick_flora(
-    flora: &FloraFile,
-    style_id: Option<&str>,
-    slot: &str,
-    pool: Option<&str>,
-    max: usize,
-    already: &[String],
-) -> Vec<FloraFragment> {
-    let mut candidates: Vec<&FloraFragment> = flora
-        .fragments
-        .iter()
-        .filter(|f| f.slot == slot)
-        .filter(|f| pool.is_none_or(|p| f.pool == p || p == "any"))
-        .filter(|f| {
-            if let Some(sid) = style_id {
-                f.style_affinity.is_empty() || f.style_affinity.iter().any(|a| a == sid)
-            } else {
-                true
-            }
-        })
-        .filter(|f| !already.iter().any(|t| t.eq_ignore_ascii_case(&f.text)))
-        .collect();
-    candidates.sort_by(|a, b| b.weight.cmp(&a.weight));
-    candidates.into_iter().take(max).cloned().collect()
-}
-
-pub fn assemble_live(
-    skeleton: &Skeleton,
-    style_id: Option<&str>,
-    styles: &StylesFile,
-    flora: &FloraFile,
-    extra: Option<&str>,
-    pool: Option<&str>,
-) -> (String, Vec<String>) {
-    let mut parts: Vec<String> = vec![];
-    let mut used_flora: Vec<String> = vec![];
-
-    if !skeleton.subject.trim().is_empty() {
-        parts.push(skeleton.subject.trim().to_string());
-    }
-    if !skeleton.action.trim().is_empty() {
-        parts.push(skeleton.action.trim().to_string());
-    }
-    if !skeleton.setting.trim().is_empty() {
-        parts.push(skeleton.setting.trim().to_string());
-    }
-
-    if let Some(sid) = style_id {
-        if let Some(pack) = styles.styles.iter().find(|s| s.id == sid) {
-            if let Some(p0) = pack.phrases.first() {
-                parts.push(p0.clone());
-            }
-        }
-    }
-
-    let already: Vec<String> = parts.clone();
-    let lighting = pick_flora(flora, style_id, "lighting", pool, 1, &already);
-    let medium = pick_flora(flora, style_id, "medium", pool, 1, &already);
-    for f in lighting.into_iter().chain(medium) {
-        used_flora.push(f.id.clone());
-        parts.push(f.text.clone());
-    }
-
-    if let Some(ex) = extra {
-        if !ex.trim().is_empty() {
-            parts.push(ex.trim().to_string());
-        }
-    }
-
-    let mut seen = HashSet::new();
-    let mut uniq = vec![];
-    for p in parts {
-        let k = p.to_lowercase();
-        if seen.insert(k) {
-            uniq.push(p);
-        }
-    }
-    (uniq.join(", "), used_flora)
-}
-
-pub fn roulette_mashup(lib: &Library, styles: &StylesFile) -> Option<(String, String, String)> {
-    if lib.prompts.is_empty() || styles.styles.is_empty() {
-        return None;
-    }
-    let p = &lib.prompts[rand_index(lib.prompts.len())];
-    let s = &styles.styles[rand_index(styles.styles.len())];
-    let core: Vec<&str> = p
-        .prompt
-        .split(',')
-        .map(str::trim)
-        .take(3)
-        .filter(|c| !c.is_empty())
-        .collect();
-    let phrase = s.phrases.first().map(|x| x.as_str()).unwrap_or(s.name.as_str());
-    let mut clauses = core;
-    clauses.push(phrase);
-    if let Some(p2) = s.phrases.get(1) {
-        clauses.push(p2.as_str());
-    }
-    Some((p.title.clone(), s.name.clone(), clauses.join(", ")))
-}
-
-fn rand_index(len: usize) -> usize {
-    let t = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as usize)
-        .unwrap_or(1);
-    t % len.max(1)
-}
-
 pub fn new_prompt_entry(title: &str, prompt: &str) -> PromptEntry {
     let now = now_iso();
     let mut entry = PromptEntry {
@@ -946,57 +693,6 @@ pub fn path_to_file_url(path: &Path) -> String {
 
 pub fn prompt_image_url(p: &PromptEntry) -> Option<String> {
     resolve_prompt_image(p).map(|path| path_to_file_url(&path))
-}
-
-/// Deck display title from pack meta, else slug title-case.
-pub fn deck_title(lib: &Library, pack_id: &str) -> String {
-    lib.packs
-        .get(pack_id)
-        .map(|m| m.title.clone())
-        .unwrap_or_else(|| title_case_slug(pack_id))
-}
-
-pub fn sort_prompt_indices(lib: &Library) -> Vec<usize> {
-    let mut idx: Vec<usize> = (0..lib.prompts.len()).collect();
-    idx.sort_by(|&a, &b| {
-        let pa = &lib.prompts[a];
-        let pb = &lib.prompts[b];
-        let score = |p: &PromptEntry| -> i32 {
-            let mut s = 0;
-            // Prefer cards that have a browsable image.
-            if resolve_prompt_image(p).is_some() {
-                s += 40;
-            }
-            if p.needs_rework {
-                s += 20;
-            }
-            if p.last_outcome.is_none() && p.copy_count_without_scar > 0 {
-                s += 50;
-            }
-            if p.storage == "hot" {
-                s += 10;
-            }
-            if p.storage == "compost" {
-                s -= 20;
-            }
-            s
-        };
-        score(pb)
-            .cmp(&score(pa))
-            .then_with(|| pb.updated_at.cmp(&pa.updated_at))
-    });
-    idx
-}
-
-/// List pack ids present on disk or in memory.
-pub fn list_pack_ids(lib: &Library) -> Vec<String> {
-    let mut set: HashSet<String> = lib.packs.keys().cloned().collect();
-    for p in &lib.prompts {
-        set.insert(p.pack_id.clone());
-    }
-    let mut v: Vec<_> = set.into_iter().collect();
-    v.sort();
-    v
 }
 
 #[cfg(test)]

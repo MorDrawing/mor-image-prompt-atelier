@@ -6,7 +6,7 @@
 pkgname=mor-image-prompt-atelier
 pkgver=0.1.0
 pkgrel=3
-pkgdesc="Searchable decks of images and prompts for AI image generators"
+pkgdesc="Write image prompts and link optional result images"
 arch=('x86_64')
 url="https://local/mor-image-prompt-atelier"
 license=('LicenseRef-Proprietary')
