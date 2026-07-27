@@ -283,7 +283,7 @@ pub fn ensure_index(lib: &Library) -> Result<(), String> {
     if !path.exists() {
         return rebuild(lib);
     }
-    // Cheap staleness check: row count mismatch → rebuild.
+    // Cheap staleness check: row count mismatch triggers rebuild.
     let conn = Connection::open(&path).map_err(|e| format!("open catalog: {e}"))?;
     let n: i64 = conn
         .query_row("SELECT COUNT(*) FROM prompts", [], |r| r.get(0))

@@ -84,7 +84,7 @@
   <line x1="44" y1="102" x2="58" y2="102" stroke="#b89cff" stroke-width="2.4"
         stroke-linecap="round" opacity="0.85"/>
 
-  <!-- Quill / pen — prompt craft -->
+  <!-- Quill / pen: prompt craft -->
   <g transform="translate(2, -2)">
     <!-- shaft -->
     <path d="M90 46 L108 26" stroke="#f0ece2" stroke-width="3.6" stroke-linecap="round"/>

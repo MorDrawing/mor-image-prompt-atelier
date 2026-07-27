@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Mor Image Prompt Atelier MCP — stdio, zero deps.
+// Mor Image Prompt Atelier MCP: stdio, zero deps.
 // Helps Grok draft, critique, improve, and store image prompts.
 //
 // Register (Grok):
@@ -534,7 +534,7 @@ function critiquePrompt(prompt) {
   if (!det.found.lighting) recommendations.push('Add one lighting/mood cue (candlelight, fog, stippled shadows).');
   if (!det.found.composition) recommendations.push('Optionally pin composition (portrait crop, poster frame, wide shot).');
   if (det.negatives.length) recommendations.push('Rewrite negatives as positives (state what to include, not exclude).');
-  if (det.word_count < 12) recommendations.push('Expand slightly — aim for 2–5 natural sentences or a tight clause list.');
+  if (det.word_count < 12) recommendations.push('Expand slightly. Aim for 2-5 natural sentences or a tight clause list.');
   if (det.word_count > 90) recommendations.push('Trim: one coherent scene, drop keyword spam.');
 
   let tier = 'C';
@@ -553,7 +553,7 @@ function critiquePrompt(prompt) {
     negatives_found: det.negatives,
     word_count: det.word_count,
     recommendations,
-    craft_order: 'subject → action/pose → setting → style → medium → composition → lighting/mood',
+    craft_order: 'subject > action/pose > setting > style > medium > composition > lighting/mood',
   };
 }
 
@@ -713,7 +713,7 @@ function varyPrompt(args) {
   const lighting = stylesData.lighting || [];
   const media = stylesData.media || [];
   const base = splitClauses(prompt);
-  // strip trailing style-ish tails loosely: keep first 2–4 clauses as core
+  // strip trailing style-ish tails loosely: keep first 2-4 clauses as core
   const core = base.slice(0, Math.min(4, base.length));
 
   const variations = [];
@@ -805,6 +805,8 @@ function listLibrary(args = {}) {
       needs_rework: !!p.needs_rework,
       storage: p.storage || 'hot',
       prompt_preview: (p.prompt || '').slice(0, 120),
+      image: p.image || null,
+      has_image: !!(p.image || (p.images && p.images.length)),
       updated_at: p.updated_at,
     })),
   };
@@ -847,6 +849,10 @@ function savePrompt(args) {
     }
     if (args.subject_class) entry.subject_class = String(args.subject_class).toLowerCase();
     else entry.subject_class = inferSubjectClass(entry);
+    if (args.image !== undefined) {
+      entry.image = args.image ? String(args.image) : null;
+    }
+    if (args.images) entry.images = Array.isArray(args.images) ? args.images : [];
     lib.prompts[idx] = entry;
   } else {
     entry = {
@@ -871,6 +877,8 @@ function savePrompt(args) {
       subject_class: args.subject_class
         ? String(args.subject_class).toLowerCase()
         : null,
+      image: args.image ? String(args.image) : null,
+      images: Array.isArray(args.images) ? args.images : [],
     };
     entry.subject_class = inferSubjectClass(entry);
     lib.prompts = lib.prompts || [];
@@ -894,7 +902,7 @@ function savePrompt(args) {
     cousins,
     cousin_warning:
       cousins.length > 0
-        ? 'Near-duplicates detected — merge or diverge intentionally before flooding the cabinet.'
+        ? 'Near-duplicates detected. Merge or diverge intentionally before flooding the cabinet.'
         : null,
   };
 }
@@ -1065,10 +1073,10 @@ function getHandbook() {
       'Living local desk for image prompts: draft, critique, ship, scar outcomes, rework, and compound craft DNA (flora).',
     practice_loop: [
       'Draft subject-first (slots).',
-      'build_prompt / improve_prompt — flora fills empty lighting/medium (max 2).',
+      'build_prompt / improve_prompt: flora fills empty lighting/medium (max 2).',
       'Copy / generate externally (Imagine etc.).',
       'record_outcome won|failed|ambiguous + note.',
-      'Failed/ambiguous → rework; improve with last_note context.',
+      'Failed/ambiguous goes to rework; improve with last_note context.',
       'set_next_experiment before ending a session.',
       'Cull: save_prompt with storage cold|compost; keep hot shelf small.',
     ],
@@ -1082,7 +1090,7 @@ function getHandbook() {
       '7. mark_copied when shipping; record_outcome after the image returns.',
       '8. set_next_experiment; finish: "done" when finished.',
     ],
-    craft_order: 'subject → action/pose → setting → style → medium → composition → lighting/mood',
+    craft_order: 'subject > action/pose > setting > style > medium > composition > lighting/mood',
     mor_flavor: [
       'PC-98 / photocopied manga texture, stippled shadows, black background',
       'Dark academia, scholarly noir, foggy streets',
@@ -1090,7 +1098,7 @@ function getHandbook() {
       'Pen and ink, delicate linework',
     ],
     imagine_rules: [
-      '2–5 natural sentences preferred over tag soup for Imagine',
+      '2-5 natural sentences preferred over tag soup for Imagine',
       'Describe what to include, never negative prompts',
       'One coherent scene per prompt',
       'Match aspect_ratio to use case (16:9 banner, 9:16 story, 1:1 icon)',
@@ -1121,7 +1129,7 @@ const TOOLS = [
   {
     name: 'list_styles',
     description:
-      'List style packs (PC-98, dark academia, Mucha, …) with phrase banks, plus media/lighting/composition lexicons.',
+      'List style packs (PC-98, dark academia, Mucha, etc.) with phrase banks, plus media/lighting/composition lexicons.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1132,7 +1140,7 @@ const TOOLS = [
   {
     name: 'critique_prompt',
     description:
-      'Score an image prompt (0–100, tier SS–C), list present/missing craft slots, detect styles, and recommend fixes. Use before improving.',
+      'Score an image prompt (0-100, tier SS to C), list present/missing craft slots, detect styles, and recommend fixes. Use before improving.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1159,7 +1167,7 @@ const TOOLS = [
         },
         aspect_ratio: {
           type: 'string',
-          description: 'Optional 1:1, 16:9, 9:16, 3:2, 2:3 — adds usage hint only',
+          description: 'Optional 1:1, 16:9, 9:16, 3:2, 2:3. Adds usage hint only',
         },
         extra: { type: 'string', description: 'Extra clause to force-include' },
       },
@@ -1194,7 +1202,7 @@ const TOOLS = [
       type: 'object',
       properties: {
         prompt: { type: 'string' },
-        count: { type: 'number', description: '1–6 variations (default 3)' },
+        count: { type: 'number', description: '1-6 variations (default 3)' },
       },
       required: ['prompt'],
     },
@@ -1258,12 +1266,21 @@ const TOOLS = [
         },
         pack_id: {
           type: 'string',
-          description: 'Pack shelf id (default inbox). e.g. murdoch-core, characters, poster-icons',
+          description: 'Deck id (default inbox). e.g. murdoch-core, characters, poster-icons',
         },
         pack: { type: 'string', description: 'Alias for pack_id' },
         subject_class: {
           type: 'string',
           description: 'character | animal | scene | poster | other (auto-inferred if omitted)',
+        },
+        image: {
+          type: 'string',
+          description: 'Filename under packs/<deck>/media/ for the card face (e.g. gen.png)',
+        },
+        images: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Extra media filenames under the same media/ folder',
         },
         skeleton: {
           type: 'object',
@@ -1328,7 +1345,7 @@ const TOOLS = [
         note: { type: 'string' },
         finish: {
           type: 'string',
-          description: 'done | dismissed — archive the open mission',
+          description: 'done | dismissed: archive the open mission',
         },
       },
     },
@@ -1347,7 +1364,7 @@ const TOOLS = [
   },
   {
     name: 'roulette',
-    description: 'Random library prompt core × random style pack — serendipity mashup.',
+    description: 'Random library prompt core x random style pack. Serendipity mashup.',
     inputSchema: {
       type: 'object',
       properties: {

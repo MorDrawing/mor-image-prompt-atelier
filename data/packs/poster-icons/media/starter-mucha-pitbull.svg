@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+  <defs>
+    <radialGradient id="halo" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#2a1f14"/>
+      <stop offset="100%" stop-color="#0a0a0c"/>
+    </radialGradient>
+  </defs>
+  <rect width="640" height="480" fill="url(#halo)"/>
+  <rect x="90" y="50" width="460" height="380" rx="12" fill="none" stroke="#c9a86c" stroke-width="3"/>
+  <rect x="110" y="70" width="420" height="340" rx="8" fill="none" stroke="#b89cff" stroke-width="1" opacity="0.5"/>
+  <circle cx="320" cy="220" r="90" fill="none" stroke="#c9a86c" stroke-width="2"/>
+  <ellipse cx="320" cy="230" rx="55" ry="48" fill="none" stroke="#f0ece2" stroke-width="1.5"/>
+  <circle cx="300" cy="220" r="6" fill="#f0ece2" opacity="0.8"/>
+  <circle cx="340" cy="220" r="6" fill="#f0ece2" opacity="0.8"/>
+  <path d="M300 250 Q320 265 340 250" fill="none" stroke="#f0ece2" stroke-width="1.5"/>
+  <path d="M200 120 Q320 80 440 120" fill="none" stroke="#c9a86c" stroke-width="1.5" opacity="0.6"/>
+  <text x="320" y="400" text-anchor="middle" fill="#f0ece2" font-family="serif" font-size="22" opacity="0.9">Mucha Pitbull</text>
+  <text x="320" y="425" text-anchor="middle" fill="#c9a86c" font-family="sans-serif" font-size="12" letter-spacing="2">POSTER ICONS</text>
+</svg>

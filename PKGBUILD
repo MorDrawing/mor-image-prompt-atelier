@@ -5,8 +5,8 @@
 
 pkgname=mor-image-prompt-atelier
 pkgver=0.1.0
-pkgrel=2
-pkgdesc="Desktop atelier for crafting and collecting image prompts (packs + FTS catalog)"
+pkgrel=3
+pkgdesc="Searchable decks of images and prompts for AI image generators"
 arch=('x86_64')
 url="https://local/mor-image-prompt-atelier"
 license=('LicenseRef-Proprietary')

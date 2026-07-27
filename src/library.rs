@@ -1,12 +1,12 @@
-//! Local-first library: multi-pack prompt files + desk sidecar + flat export.
+//! Local-first library: decks of image+prompt cards + optional desk + flat export.
 //!
-//! Layout (mflash-inspired, atelier-native):
+//! Layout (UI says "decks"; on disk still `packs/`):
 //! ```text
 //! data/
-//!   packs/<pack-id>/pack.json
-//!   packs/<pack-id>/prompts/<prompt-id>.json
-//!   packs/<pack-id>/media/          # optional reference images
-//!   desk.json                       # next_experiment + history (not content)
+//!   packs/<deck-id>/pack.json
+//!   packs/<deck-id>/prompts/<card-id>.json
+//!   packs/<deck-id>/media/          # card faces / reference gens
+//!   desk.json                       # optional missions (not primary UI)
 //!   library.json                    # flat export for compatibility
 //!   catalog.sqlite                  # rebuildable FTS index
 //!   styles.json / flora.json
@@ -90,12 +90,18 @@ pub struct PromptEntry {
     pub skeleton: Option<Skeleton>,
     #[serde(default)]
     pub fragment_ids: Vec<String>,
-    /// Pack slug this prompt lives under (e.g. murdoch-core).
+    /// Pack slug this prompt lives under (e.g. murdoch-core). UI calls these decks.
     #[serde(default = "default_pack")]
     pub pack_id: String,
     /// Facet: character | animal | scene | poster | abstract | other
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subject_class: Option<String>,
+    /// Filename under `packs/<pack_id>/media/` (e.g. `starter.png`). Optional.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    /// Extra reference filenames under the same media/ folder.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub images: Vec<String>,
 }
 
 fn default_tier() -> String {
@@ -446,7 +452,7 @@ pub fn load_library() -> Result<Library, String> {
             .unwrap_or(false);
 
     if !has_packs {
-        // Legacy single-file library → migrate once.
+        // Legacy single-file library: migrate once.
         if library_path().exists() {
             let mut lib = load_library_flat()?;
             migrate_to_packs(&mut lib)?;
@@ -880,9 +886,74 @@ pub fn new_prompt_entry(title: &str, prompt: &str) -> PromptEntry {
         fragment_ids: vec![],
         pack_id: "inbox".into(),
         subject_class: None,
+        image: None,
+        images: vec![],
     };
     entry.subject_class = Some(infer_subject_class(&entry));
     entry
+}
+
+/// Absolute path to the card image, if any (explicit field or media/{id}.*).
+pub fn resolve_prompt_image(p: &PromptEntry) -> Option<PathBuf> {
+    let media = pack_dir(&p.pack_id).join("media");
+    if let Some(name) = p.image.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        let path = if Path::new(name).is_absolute() {
+            PathBuf::from(name)
+        } else {
+            media.join(name)
+        };
+        if path.is_file() {
+            return Some(path);
+        }
+    }
+    for name in &p.images {
+        let name = name.trim();
+        if name.is_empty() {
+            continue;
+        }
+        let path = media.join(name);
+        if path.is_file() {
+            return Some(path);
+        }
+    }
+    for ext in ["webp", "png", "jpg", "jpeg", "gif", "svg"] {
+        let path = media.join(format!("{}.{}", p.id, ext));
+        if path.is_file() {
+            return Some(path);
+        }
+    }
+    None
+}
+
+/// `file://` URL for webview `<img src>`.
+pub fn path_to_file_url(path: &Path) -> String {
+    let abs = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    let s = abs.to_string_lossy();
+    let mut out = String::from("file://");
+    for c in s.chars() {
+        match c {
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '/' | '-' | '_' | '.' | '~' => out.push(c),
+            ' ' => out.push_str("%20"),
+            _ => {
+                for b in c.to_string().as_bytes() {
+                    out.push_str(&format!("%{b:02X}"));
+                }
+            }
+        }
+    }
+    out
+}
+
+pub fn prompt_image_url(p: &PromptEntry) -> Option<String> {
+    resolve_prompt_image(p).map(|path| path_to_file_url(&path))
+}
+
+/// Deck display title from pack meta, else slug title-case.
+pub fn deck_title(lib: &Library, pack_id: &str) -> String {
+    lib.packs
+        .get(pack_id)
+        .map(|m| m.title.clone())
+        .unwrap_or_else(|| title_case_slug(pack_id))
 }
 
 pub fn sort_prompt_indices(lib: &Library) -> Vec<usize> {
@@ -892,8 +963,12 @@ pub fn sort_prompt_indices(lib: &Library) -> Vec<usize> {
         let pb = &lib.prompts[b];
         let score = |p: &PromptEntry| -> i32 {
             let mut s = 0;
+            // Prefer cards that have a browsable image.
+            if resolve_prompt_image(p).is_some() {
+                s += 40;
+            }
             if p.needs_rework {
-                s += 100;
+                s += 20;
             }
             if p.last_outcome.is_none() && p.copy_count_without_scar > 0 {
                 s += 50;
@@ -977,7 +1052,23 @@ mod tests {
             fragment_ids: vec![],
             pack_id: "poster-icons".into(),
             subject_class: None,
+            image: None,
+            images: vec![],
         };
         assert_eq!(infer_subject_class(&p), "animal");
+    }
+
+    #[test]
+    fn resolve_image_from_media_file() {
+        let lib = load_library().expect("load");
+        let p = lib
+            .prompts
+            .iter()
+            .find(|p| p.id == "starter-pc98-wordsmiths")
+            .expect("starter");
+        let path = resolve_prompt_image(p).expect("media file");
+        assert!(path.extension().and_then(|e| e.to_str()) == Some("svg"));
+        let url = prompt_image_url(p).expect("url");
+        assert!(url.starts_with("file://"));
     }
 }

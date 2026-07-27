@@ -3,11 +3,12 @@ Type=Application
 Version=1.0
 Name=Mor Image Prompt Atelier
 GenericName=Image Prompt Atelier
-Comment=Craft, browse, and copy image-generation prompts
+Comment=Searchable decks of images and prompts for AI image generators
 Exec=mor-image-prompt-atelier
 Icon=mor-image-prompt-atelier
 Terminal=false
 Categories=Graphics;
-Keywords=prompt;image;ai;atelier;mor;
+Keywords=prompt;image;ai;atelier;deck;search;mor;
 StartupNotify=true
-StartupWMClass=Mor-image-prompt-atelier
+# Match tao/wry binary class so the panel uses our hicolor icon while running.
+StartupWMClass=mor-image-prompt-atelier
