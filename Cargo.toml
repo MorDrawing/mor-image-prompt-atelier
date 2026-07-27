@@ -2,6 +2,7 @@
 name = "mor_image_prompt_atelier"
 version = "0.1.0"
 edition = "2024"
+description = "Write image prompts, save them as an mflash folder, optionally link result images"
 
 [dependencies]
 dioxus = { version = "0.7", features = ["desktop"] }

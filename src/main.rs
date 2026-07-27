@@ -1,9 +1,15 @@
-// ponytail: text workspace + folder picker (mflash deck.json) + optional image link.
+// ponytail: text workspace + native menu + folder/image pickers.
 mod catalog;
 mod library;
 
+use dioxus::desktop::muda::{
+    accelerator::{Accelerator, Code, Modifiers},
+    AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu,
+};
 use dioxus::desktop::tao::window::Icon;
-use dioxus::desktop::{icon_from_memory, Config, LogicalSize, WindowBuilder};
+use dioxus::desktop::{
+    icon_from_memory, use_muda_event_handler, Config, LogicalSize, WindowBuilder,
+};
 use dioxus::prelude::*;
 
 use catalog::SearchQuery;
@@ -20,13 +26,100 @@ fn load_window_icon() -> Option<Icon> {
     icon_from_memory::<Icon>(APP_ICON_PNG).ok()
 }
 
+/// Native menu bar. Item ids are handled in `App` via `use_muda_event_handler`.
+fn build_menu() -> Menu {
+    let ctrl = |code| Some(Accelerator::new(Some(Modifiers::CONTROL), code));
+    let ctrl_shift = |code| {
+        Some(Accelerator::new(
+            Some(Modifiers::CONTROL | Modifiers::SHIFT),
+            code,
+        ))
+    };
+    let item = |id: &str, text: &str, accel| MenuItem::with_id(id, text, true, accel);
+
+    let file = Submenu::new("File", true);
+    file.append_items(&[
+        &item("new_prompt", "New Prompt", ctrl(Code::KeyN)),
+        &item("open_folder", "Open Folder…", ctrl(Code::KeyO)),
+        &PredefinedMenuItem::separator(),
+        &item("save", "Save", ctrl(Code::KeyS)),
+        &item("show_folder", "Show Workspace Path", None),
+        &PredefinedMenuItem::separator(),
+        &PredefinedMenuItem::quit(None),
+    ])
+    .unwrap();
+
+    // Predefined edit items keep cut/copy/paste working in the prompt textarea.
+    let edit = Submenu::new("Edit", true);
+    edit.append_items(&[
+        &PredefinedMenuItem::undo(None),
+        &PredefinedMenuItem::redo(None),
+        &PredefinedMenuItem::separator(),
+        &PredefinedMenuItem::cut(None),
+        &PredefinedMenuItem::copy(None),
+        &PredefinedMenuItem::paste(None),
+        &PredefinedMenuItem::select_all(None),
+        &PredefinedMenuItem::separator(),
+        &item(
+            "copy_prompt",
+            "Copy Prompt",
+            ctrl_shift(Code::KeyC),
+        ),
+        &item("link_image", "Link Image…", ctrl(Code::KeyL)),
+        &item("unlink_image", "Unlink Image", None),
+    ])
+    .unwrap();
+
+    let window = Submenu::new("Window", true);
+    window
+        .append_items(&[
+            &PredefinedMenuItem::fullscreen(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::minimize(None),
+            &PredefinedMenuItem::maximize(None),
+            &PredefinedMenuItem::close_window(None),
+        ])
+        .unwrap();
+
+    let help = Submenu::new("Help", true);
+    help.append_items(&[&PredefinedMenuItem::about(
+        Some("About Mor Image Prompt Atelier"),
+        Some(AboutMetadata {
+            name: Some("Mor Image Prompt Atelier".into()),
+            version: Some(env!("CARGO_PKG_VERSION").into()),
+            comments: Some(env!("CARGO_PKG_DESCRIPTION").into()),
+            copyright: Some("Local desktop atelier".into()),
+            ..Default::default()
+        }),
+    )])
+    .unwrap();
+
+    if cfg!(debug_assertions) {
+        help.append_items(&[
+            &PredefinedMenuItem::separator(),
+            &MenuItem::with_id(
+                "dioxus-toggle-dev-tools",
+                "Toggle Developer Tools",
+                true,
+                None,
+            ),
+        ])
+        .unwrap();
+    }
+
+    let menu = Menu::new();
+    menu.append_items(&[&file, &edit, &window, &help]).unwrap();
+    menu
+}
+
 fn main() {
     let mut cfg = Config::new()
-        .with_menu(None::<dioxus::desktop::muda::Menu>)
+        .with_menu(build_menu())
         .with_window(
             WindowBuilder::new()
                 .with_title("Mor Image Prompt Atelier")
-                .with_inner_size(LogicalSize::new(1200.0, 780.0)),
+                .with_inner_size(LogicalSize::new(1200.0, 780.0))
+                .with_min_inner_size(LogicalSize::new(800.0, 520.0)),
         );
     if let Some(icon) = load_window_icon() {
         cfg = cfg.with_icon(icon);
@@ -83,7 +176,6 @@ fn preview(text: &str, max: usize) -> String {
 fn load_lib() -> (Library, Option<String>) {
     match load_library() {
         Ok(mut l) => {
-            // First open of legacy packs → write deck.json in place.
             if let Err(e) = save_library(&l) {
                 return (l, Some(e));
             }
@@ -132,37 +224,35 @@ fn App() -> Element {
         }
     };
 
-    let mut open_folder = move |_| {
+    // Closures only capture Copy signals so they can be used from buttons + menu.
+    let mut open_folder = move || {
         if let Some(dir) = rfd::FileDialog::new()
             .set_title("Choose folder for mflash deck (deck.json + media/)")
             .pick_folder()
         {
             match set_workspace(dir) {
-                Ok(()) => match load_lib() {
-                    (l, err) => {
-                        let n = l.prompts.len();
-                        let first = l.prompts.first().map(|p| p.id.clone()).unwrap_or_default();
-                        lib.set(l);
-                        selected_id.set(first.clone());
-                        if let Some(p) = lib().prompts.iter().find(|p| p.id == first) {
-                            draft.set(p.prompt.clone());
-                            draft_image.set(p.image.clone().unwrap_or_default());
-                        } else {
-                            draft.set(String::new());
-                            draft_image.set(String::new());
-                        }
-                        folder_label.set(workspace_display());
-                        status.set(
-                            err.unwrap_or_else(|| format!("Opened folder · {n} prompts")),
-                        );
+                Ok(()) => {
+                    let (l, err) = load_lib();
+                    let n = l.prompts.len();
+                    let first = l.prompts.first().map(|p| p.id.clone()).unwrap_or_default();
+                    lib.set(l);
+                    selected_id.set(first.clone());
+                    if let Some(p) = lib().prompts.iter().find(|p| p.id == first) {
+                        draft.set(p.prompt.clone());
+                        draft_image.set(p.image.clone().unwrap_or_default());
+                    } else {
+                        draft.set(String::new());
+                        draft_image.set(String::new());
                     }
-                },
+                    folder_label.set(workspace_display());
+                    status.set(err.unwrap_or_else(|| format!("Opened folder · {n} prompts")));
+                }
                 Err(e) => status.set(e),
             }
         }
     };
 
-    let mut save = move |_| {
+    let mut save = move || {
         let text = draft();
         if text.trim().is_empty() {
             status.set("Write a prompt first".into());
@@ -195,14 +285,14 @@ fn App() -> Element {
         }
     };
 
-    let mut new_prompt = move |_| {
+    let mut new_prompt = move || {
         draft.set(String::new());
         draft_image.set(String::new());
         selected_id.set(String::new());
         status.set("New prompt — write, then Save".into());
     };
 
-    let mut copy_prompt = move |_| {
+    let mut copy_prompt = move || {
         let text = draft();
         if text.trim().is_empty() {
             status.set("Nothing to copy".into());
@@ -212,9 +302,8 @@ fn App() -> Element {
         status.set("Copied".into());
     };
 
-    let mut pick_image = move |_| {
+    let mut pick_image = move || {
         let mut id = selected_id();
-        // Ensure we have a card id so the file can be named.
         if id.is_empty() {
             let text = draft();
             if text.trim().is_empty() {
@@ -263,7 +352,7 @@ fn App() -> Element {
         }
     };
 
-    let mut clear_image = move |_| {
+    let mut clear_image = move || {
         draft_image.set(String::new());
         let id = selected_id();
         if id.is_empty() {
@@ -282,6 +371,23 @@ fn App() -> Element {
             Err(e) => status.set(e),
         }
     };
+
+    let mut show_folder = move || {
+        let path = workspace_display();
+        folder_label.set(path.clone());
+        status.set(format!("Workspace: {path}"));
+    };
+
+    use_muda_event_handler(move |e| match e.id().0.as_str() {
+        "new_prompt" => new_prompt(),
+        "open_folder" => open_folder(),
+        "save" => save(),
+        "show_folder" => show_folder(),
+        "copy_prompt" => copy_prompt(),
+        "link_image" => pick_image(),
+        "unlink_image" => clear_image(),
+        _ => {}
+    });
 
     let q = query();
     let visible: Vec<PromptEntry> = {
@@ -323,11 +429,11 @@ fn App() -> Element {
             aside { class: "library",
                 div { class: "lib-head",
                     h1 { "Prompts" }
-                    button { class: "btn", onclick: move |_| new_prompt(()), "New" }
+                    button { class: "btn", onclick: move |_| new_prompt(), "New" }
                 }
                 button {
                     class: "btn folder-btn",
-                    onclick: move |_| open_folder(()),
+                    onclick: move |_| open_folder(),
                     "Open folder…"
                 }
                 p { class: "folder-path", title: "{folder_label}", "{folder_label}" }
@@ -363,8 +469,8 @@ fn App() -> Element {
 
             main { class: "workspace",
                 div { class: "toolbar",
-                    button { class: "btn primary", onclick: move |_| copy_prompt(()), "Copy" }
-                    button { class: "btn", onclick: move |_| save(()), "Save" }
+                    button { class: "btn primary", onclick: move |_| copy_prompt(), "Copy" }
+                    button { class: "btn", onclick: move |_| save(), "Save" }
                     span { class: "status", "{status}" }
                 }
                 label { class: "hint", "Image prompt (one paragraph)" }
@@ -375,9 +481,9 @@ fn App() -> Element {
                     oninput: move |e| draft.set(e.value()),
                 }
                 div { class: "image-actions",
-                    button { class: "btn", onclick: move |_| pick_image(()), "Link image…" }
+                    button { class: "btn", onclick: move |_| pick_image(), "Link image…" }
                     if !draft_image().is_empty() {
-                        button { class: "btn", onclick: move |_| clear_image(()), "Unlink" }
+                        button { class: "btn", onclick: move |_| clear_image(), "Unlink" }
                         span { class: "hint", "{draft_image}" }
                     } else {
                         span { class: "hint", "Optional: result image for this prompt" }
@@ -393,7 +499,7 @@ fn App() -> Element {
                 } else {
                     div { class: "result empty",
                         p { "No image linked." }
-                        p { class: "hint", "Use “Link image…” to pick a file." }
+                        p { class: "hint", "Use “Link image…” or Edit → Link Image…" }
                     }
                 }
             }
