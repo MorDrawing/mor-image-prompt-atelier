@@ -1,0 +1,5 @@
+/target
+/pkg
+*.pkg.tar.*
+*.pkg.tar
+/mor-image-prompt-atelier-*.pkg.tar.zst

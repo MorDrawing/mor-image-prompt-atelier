@@ -1,0 +1,510 @@
+/* Design tokens — same --mor-* contract as mor_blogger_theme_editor */
+:root {
+  --mor-bg: #08080c;
+  --mor-panel: #101018;
+  --mor-header: #0a0a10;
+  --mor-text: #f0ece2;
+  --mor-text-muted: rgba(240, 236, 226, 0.68);
+  --mor-border: rgba(240, 236, 226, 0.16);
+  --mor-border-light: rgba(240, 236, 226, 0.28);
+  --mor-accent: #b89cff;
+  --mor-accent-hover: #c9b3ff;
+  --mor-btn: rgba(240, 236, 226, 0.06);
+  --mor-btn-hover: rgba(240, 236, 226, 0.12);
+  --mor-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mor-destructive: #f0506b;
+  --mor-success: #46c08a;
+  --mor-warning: #e0a13a;
+
+  --editor-bg: var(--mor-bg);
+  --editor-panel: var(--mor-panel);
+  --editor-panel-raised: var(--mor-btn);
+  --editor-border: var(--mor-border);
+  --editor-border-soft: color-mix(in srgb, var(--mor-border) 50%, transparent);
+  --editor-text: var(--mor-text);
+  --editor-muted: var(--mor-text-muted);
+  --editor-muted-2: color-mix(in srgb, var(--mor-text-muted) 70%, transparent);
+  --editor-accent: var(--mor-accent);
+  --font-sans: var(--mor-font);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#main,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--mor-bg);
+  color: var(--mor-text);
+  font-family: serif;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+/* ── Shell / frameless chrome ───────────────────────────────────────── */
+
+.mor-root {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--mor-bg);
+  overflow: hidden;
+  position: relative;
+}
+
+.mor-headerbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 46px;
+  flex-shrink: 0;
+  background: var(--mor-header);
+  border-bottom: 1px solid var(--mor-border);
+  user-select: none;
+}
+
+.mor-headerbar-start,
+.mor-headerbar-center,
+.mor-headerbar-end {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.mor-headerbar-start {
+  justify-content: flex-start;
+  padding-left: 8px;
+  gap: 6px;
+}
+
+.mor-headerbar-center {
+  justify-content: center;
+}
+
+.mor-headerbar-end {
+  justify-content: flex-end;
+  padding-right: 6px;
+  gap: 6px;
+}
+
+.mor-window-title-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mor-window-title {
+  font-family: var(--mor-font);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--mor-text);
+}
+
+.mor-window-subtitle {
+  font-family: var(--mor-font);
+  font-size: 11px;
+  color: var(--mor-text-muted);
+  margin-top: -2px;
+}
+
+.mor-window-controls {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.window-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--mor-text-muted);
+  cursor: default;
+  font-family: sans-serif;
+  font-size: 14px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.window-btn:hover {
+  background: var(--mor-btn-hover);
+  color: var(--mor-text);
+}
+
+.window-btn.close:hover {
+  background: var(--mor-destructive);
+  color: white;
+}
+
+.mor-resize-edge {
+  position: absolute;
+  z-index: 9999;
+}
+
+.mor-resize-edge.top {
+  top: 0;
+  left: 6px;
+  right: 6px;
+  height: 6px;
+  cursor: n-resize;
+}
+
+.mor-resize-edge.bottom {
+  bottom: 0;
+  left: 6px;
+  right: 6px;
+  height: 6px;
+  cursor: s-resize;
+}
+
+.mor-resize-edge.left {
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  width: 6px;
+  cursor: w-resize;
+}
+
+.mor-resize-edge.right {
+  top: 6px;
+  bottom: 6px;
+  right: 0;
+  width: 6px;
+  cursor: e-resize;
+}
+
+.mor-resize-edge.top-left {
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  cursor: nw-resize;
+}
+
+.mor-resize-edge.top-right {
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  cursor: ne-resize;
+}
+
+.mor-resize-edge.bottom-left {
+  bottom: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  cursor: sw-resize;
+}
+
+.mor-resize-edge.bottom-right {
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  cursor: se-resize;
+}
+
+/* ── Menu bar (GTK / Libadwaita-style) ──────────────────────────────── */
+
+.editor-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mor-menu-bar {
+  display: flex;
+  flex-shrink: 0;
+  background-color: var(--editor-bg);
+  border-bottom: 1px solid var(--editor-border);
+  height: 32px;
+  align-items: center;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 13px;
+  color: var(--editor-text);
+  user-select: none;
+  position: relative;
+  z-index: 9999;
+  padding: 0 4px;
+}
+
+.mor-menu-bar > .mor-menu-item {
+  position: relative;
+  height: calc(100% - 6px);
+  margin: 3px 2px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  cursor: default;
+  color: var(--editor-text);
+  border-radius: var(--radius-sm, 6px);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.mor-menu-bar > .mor-menu-item:hover {
+  background-color: var(--editor-panel-raised);
+  color: var(--editor-text);
+}
+
+.mor-menu-bar > .mor-menu-brand {
+  padding: 0 6px;
+}
+
+.mor-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--mor-accent) 28%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mor-accent) 55%, transparent);
+  color: var(--mor-accent);
+  font-family: var(--font-sans), sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.mor-menu-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 2px;
+  background-color: var(--editor-panel);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  min-width: 220px;
+  padding: 5px;
+  z-index: 10000;
+}
+
+.mor-menu-item:hover .mor-menu-dropdown {
+  display: block;
+}
+
+.mor-menu-dropdown .mor-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: calc(100% - 4px);
+  margin: 2px;
+  padding: 7px 12px;
+  background: transparent;
+  border: none;
+  color: var(--editor-text);
+  font-size: 13px;
+  font-family: var(--font-sans), sans-serif;
+  cursor: pointer;
+  border-radius: var(--radius-sm, 6px);
+  transition: background-color 0.1s ease, color 0.1s ease;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.mor-menu-dropdown .mor-menu-item:hover:not(.disabled) {
+  background-color: var(--editor-accent);
+  color: #ffffff;
+}
+
+.mor-menu-dropdown .mor-menu-item.disabled {
+  color: var(--editor-muted-2);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.mor-menu-dropdown .mor-menu-item .shortcut {
+  font-size: 11px;
+  color: var(--editor-muted);
+  margin-left: 24px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.mor-menu-dropdown .mor-menu-item:hover:not(.disabled) .shortcut {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.mor-menu-divider {
+  height: 1px;
+  background-color: var(--editor-border-soft);
+  margin: 5px 4px;
+}
+
+/* ── App content layout ─────────────────────────────────────────────── */
+
+.app-shell {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 280px 1fr 320px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(184, 156, 255, 0.16), transparent 32rem),
+    var(--mor-bg);
+}
+
+.sidebar,
+.editor-panel,
+.image-panel {
+  padding: 1.25rem;
+  border-right: 1px solid var(--mor-border);
+  overflow: auto;
+}
+
+.image-panel {
+  border-right: none;
+  border-left: 1px solid var(--mor-border);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: 1.55rem;
+  line-height: 1.1;
+}
+
+.subtitle {
+  color: var(--mor-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.prompt-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.prompt-button {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem;
+  border: 1px solid var(--mor-border-light);
+  background: var(--mor-btn);
+  color: var(--mor-text);
+  cursor: pointer;
+}
+
+.prompt-button:hover,
+.prompt-button.active {
+  border-color: var(--mor-accent);
+  background: color-mix(in srgb, var(--mor-accent) 18%, transparent);
+}
+
+.prompt-title,
+.prompt-tier {
+  display: block;
+}
+
+.prompt-tier {
+  margin-top: 0.25rem;
+  color: var(--mor-text-muted);
+  font-size: 0.9rem;
+}
+
+.panel-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.copy-button {
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--mor-accent);
+  background: transparent;
+  color: var(--mor-text);
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  background: color-mix(in srgb, var(--mor-accent) 16%, transparent);
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+.tag {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--mor-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--mor-accent) 12%, transparent);
+  color: var(--mor-text);
+}
+
+.field-label {
+  display: block;
+  margin: 1rem 0 0.4rem;
+  color: color-mix(in srgb, var(--mor-text) 78%, transparent);
+}
+
+.prompt-textarea,
+.notes-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--mor-border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--mor-text);
+  padding: 0.8rem;
+  resize: vertical;
+}
+
+.prompt-textarea {
+  min-height: 220px;
+}
+
+.notes-textarea {
+  min-height: 120px;
+}
+
+.image-placeholder,
+.future-box {
+  border: 1px solid var(--mor-border);
+  background: var(--mor-btn);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.image-placeholder {
+  min-height: 180px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+small {
+  color: var(--mor-text-muted);
+}
+
+li {
+  margin-bottom: 0.4rem;
+}

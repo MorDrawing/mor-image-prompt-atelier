@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "styles": [
+    {
+      "id": "pc98",
+      "name": "PC-98 / photocopied manga",
+      "tags": ["pc98", "manga", "retro"],
+      "phrases": [
+        "stippled shadows",
+        "photocopied manga texture",
+        "delicate white linework",
+        "black background",
+        "halftone grain",
+        "limited palette"
+      ],
+      "notes": "Murdoch core: sparse, high-contrast, inked anime figures on black."
+    },
+    {
+      "id": "dark-academia",
+      "name": "Dark academia",
+      "tags": ["dark-academia", "scholarly", "noir"],
+      "phrases": [
+        "dark academia",
+        "foggy cobblestone street",
+        "somberly dressed",
+        "brooding at night",
+        "leather-bound books",
+        "candlelight and dust"
+      ],
+      "notes": "Scholarly mood, night, danger-adjacent elegance."
+    },
+    {
+      "id": "mucha",
+      "name": "Alphonse Mucha / art nouveau",
+      "tags": ["mucha", "art-nouveau", "poster"],
+      "phrases": [
+        "in the style of Alphonse Mucha",
+        "art nouveau poster composition",
+        "ornate frame",
+        "elegant linework",
+        "flowing hair and florals",
+        "gold and muted pastels"
+      ],
+      "notes": "Elevates any subject into a poster icon."
+    },
+    {
+      "id": "pen-ink",
+      "name": "Pen and ink",
+      "tags": ["pen-and-ink", "illustration"],
+      "phrases": [
+        "pen and ink",
+        "delicate linework",
+        "cross-hatching",
+        "ink wash",
+        "fine-point contour"
+      ],
+      "notes": "Clean illustration medium; pairs with noir and academia."
+    },
+    {
+      "id": "atelier",
+      "name": "Atelier / studio",
+      "tags": ["atelier", "studio", "interior"],
+      "phrases": [
+        "cluttered atelier",
+        "typewriter on a heavy desk",
+        "scattered manuscript pages",
+        "warm lamp over cool shadows",
+        "three figures gathered in conversation"
+      ],
+      "notes": "Room as character; good for group compositions."
+    },
+    {
+      "id": "noir",
+      "name": "Noir / night street",
+      "tags": ["noir", "night", "street"],
+      "phrases": [
+        "wet asphalt reflections",
+        "streetlamp cone of light",
+        "deep shadows",
+        "cigarette smoke curl",
+        "rain-slick cobblestones"
+      ],
+      "notes": "Mood first, then subject."
+    },
+    {
+      "id": "ukiyo-e",
+      "name": "Ukiyo-e woodblock",
+      "tags": ["ukiyo-e", "woodblock", "japanese"],
+      "phrases": [
+        "ukiyo-e woodblock print",
+        "flat color planes",
+        "bold contour lines",
+        "wave and cloud patterns",
+        "Edo-period palette"
+      ],
+      "notes": "Strong silhouettes; avoid photo-realism."
+    },
+    {
+      "id": "oil-baroque",
+      "name": "Baroque oil painting",
+      "tags": ["baroque", "oil", "classical"],
+      "phrases": [
+        "baroque oil painting",
+        "chiaroscuro lighting",
+        "rich impasto",
+        "dramatic diagonal composition",
+        "Rembrandt-like warmth"
+      ],
+      "notes": "Weighty, classical, high drama."
+    }
+  ],
+  "media": [
+    "pen and ink",
+    "photocopied manga texture",
+    "oil on canvas",
+    "watercolor on textured paper",
+    "charcoal sketch",
+    "screen print",
+    "woodblock print",
+    "digital illustration with film grain"
+  ],
+  "lighting": [
+    "soft key light from the left",
+    "harsh single overhead lamp",
+    "candlelight and long shadows",
+    "moonlit fog",
+    "neon rim light",
+    "golden hour side light",
+    "flat overcast daylight"
+  ],
+  "composition": [
+    "centered portrait, tight crop",
+    "wide establishing shot",
+    "three-quarter view",
+    "low angle looking up",
+    "birds-eye overview",
+    "rule-of-thirds subject left",
+    "poster layout with ornate border"
+  ],
+  "aspect_hints": {
+    "1:1": "avatar, icon, album cover",
+    "16:9": "banner, desktop wallpaper, video frame",
+    "9:16": "phone wallpaper, story, vertical poster",
+    "3:2": "photographic print",
+    "2:3": "portrait poster"
+  }
+}
