@@ -6,7 +6,7 @@ use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
 pub fn catalog_path() -> PathBuf {
-    crate::library::data_dir().join("catalog.sqlite")
+    crate::library::catalog_path()
 }
 
 pub fn rebuild(lib: &Library) -> Result<(), String> {
@@ -14,65 +14,61 @@ pub fn rebuild(lib: &Library) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("mkdir catalog: {e}"))?;
     }
-    // Atomic-ish rebuild: write to temp then rename.
-    let tmp = path.with_extension("sqlite.tmp");
-    let _ = std::fs::remove_file(&tmp);
+    // Rebuild in place (simpler than rename; avoids cross-device / open-handle races).
+    let _ = std::fs::remove_file(&path);
+    let conn = Connection::open(&path).map_err(|e| format!("open catalog: {e}"))?;
+    init_schema(&conn)?;
+    let tx = conn
+        .unchecked_transaction()
+        .map_err(|e| format!("catalog tx: {e}"))?;
     {
-        let conn = Connection::open(&tmp).map_err(|e| format!("open catalog tmp: {e}"))?;
-        init_schema(&conn)?;
-        let tx = conn
-            .unchecked_transaction()
-            .map_err(|e| format!("catalog tx: {e}"))?;
-        {
-            let mut ins = tx
-                .prepare(
-                    "INSERT INTO prompts (
-                        id, pack_id, title, tier, storage, tags, prompt, notes,
-                        last_outcome, needs_rework, subject_class, updated_at
-                    ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
-                )
-                .map_err(|e| format!("prepare insert: {e}"))?;
-            let mut ins_fts = tx
-                .prepare(
-                    "INSERT INTO prompts_fts (
-                        id, title, tags, prompt, notes, subject_class, pack_id
-                    ) VALUES (?1,?2,?3,?4,?5,?6,?7)",
-                )
-                .map_err(|e| format!("prepare fts insert: {e}"))?;
-            for p in &lib.prompts {
-                let tags = p.tags.join(" ");
-                let subject_class = infer_subject_class(p);
-                ins.execute(params![
+        let mut ins = tx
+            .prepare(
+                "INSERT INTO prompts (
+                    id, pack_id, title, tier, storage, tags, prompt, notes,
+                    last_outcome, needs_rework, subject_class, updated_at
+                ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+            )
+            .map_err(|e| format!("prepare insert: {e}"))?;
+        let mut ins_fts = tx
+            .prepare(
+                "INSERT INTO prompts_fts (
+                    id, title, tags, prompt, notes, subject_class, pack_id
+                ) VALUES (?1,?2,?3,?4,?5,?6,?7)",
+            )
+            .map_err(|e| format!("prepare fts insert: {e}"))?;
+        for p in &lib.prompts {
+            let tags = p.tags.join(" ");
+            let subject_class = infer_subject_class(p);
+            ins.execute(params![
+                p.id,
+                p.pack_id,
+                p.title,
+                p.tier,
+                p.storage,
+                tags,
+                p.prompt,
+                p.notes,
+                p.last_outcome.as_deref().unwrap_or(""),
+                if p.needs_rework { 1 } else { 0 },
+                subject_class,
+                p.updated_at,
+            ])
+            .map_err(|e| format!("insert {}: {e}", p.id))?;
+            ins_fts
+                .execute(params![
                     p.id,
-                    p.pack_id,
                     p.title,
-                    p.tier,
-                    p.storage,
                     tags,
                     p.prompt,
                     p.notes,
-                    p.last_outcome.as_deref().unwrap_or(""),
-                    if p.needs_rework { 1 } else { 0 },
                     subject_class,
-                    p.updated_at,
+                    p.pack_id,
                 ])
-                .map_err(|e| format!("insert {}: {e}", p.id))?;
-                ins_fts
-                    .execute(params![
-                        p.id,
-                        p.title,
-                        tags,
-                        p.prompt,
-                        p.notes,
-                        subject_class,
-                        p.pack_id,
-                    ])
-                    .map_err(|e| format!("fts insert {}: {e}", p.id))?;
-            }
+                .map_err(|e| format!("fts insert {}: {e}", p.id))?;
         }
-        tx.commit().map_err(|e| format!("catalog commit: {e}"))?;
     }
-    std::fs::rename(&tmp, &path).map_err(|e| format!("rename catalog: {e}"))?;
+    tx.commit().map_err(|e| format!("catalog commit: {e}"))?;
     Ok(())
 }
 

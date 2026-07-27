@@ -71,6 +71,28 @@ input {
   gap: 0.5rem;
 }
 
+.folder-btn {
+  width: 100%;
+}
+
+.folder-path {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  word-break: break-all;
+  line-height: 1.3;
+  max-height: 2.6em;
+  overflow: hidden;
+}
+
+.image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
 .lib-head h1,
 .image-side h2 {
   margin: 0;

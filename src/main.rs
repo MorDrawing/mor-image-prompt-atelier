@@ -1,4 +1,4 @@
-// ponytail: one-paragraph prompt editor + optional result image. No scar/flora/deck chrome in UI.
+// ponytail: text workspace + folder picker (mflash deck.json) + optional image link.
 mod catalog;
 mod library;
 
@@ -8,7 +8,8 @@ use dioxus::prelude::*;
 
 use catalog::SearchQuery;
 use library::{
-    load_library, new_prompt_entry, now_iso, prompt_image_url, save_library, Library, PromptEntry,
+    import_image_for_prompt, load_library, new_prompt_entry, now_iso, prompt_image_url,
+    save_library, set_workspace, workspace_display, Library, PromptEntry,
 };
 
 static APP_CSS: &str = include_str!("../assets/style.css");
@@ -82,6 +83,7 @@ fn preview(text: &str, max: usize) -> String {
 fn load_lib() -> (Library, Option<String>) {
     match load_library() {
         Ok(mut l) => {
+            // First open of legacy packs → write deck.json in place.
             if let Err(e) = save_library(&l) {
                 return (l, Some(e));
             }
@@ -108,11 +110,11 @@ fn App() -> Element {
     let mut query = use_signal(String::new);
     let mut draft = use_signal(String::new);
     let mut draft_image = use_signal(String::new);
+    let mut folder_label = use_signal(workspace_display);
     let mut status = use_signal(|| {
         load_error.unwrap_or_else(|| format!("{} prompts", lib().prompts.len()))
     });
 
-    // Seed draft from selection once.
     {
         if draft().is_empty() {
             if let Some(p) = lib().prompts.iter().find(|p| p.id == selected_id()) {
@@ -127,6 +129,36 @@ fn App() -> Element {
         if let Some(p) = lib().prompts.iter().find(|p| p.id == id) {
             draft.set(p.prompt.clone());
             draft_image.set(p.image.clone().unwrap_or_default());
+        }
+    };
+
+    let mut open_folder = move |_| {
+        if let Some(dir) = rfd::FileDialog::new()
+            .set_title("Choose folder for mflash deck (deck.json + media/)")
+            .pick_folder()
+        {
+            match set_workspace(dir) {
+                Ok(()) => match load_lib() {
+                    (l, err) => {
+                        let n = l.prompts.len();
+                        let first = l.prompts.first().map(|p| p.id.clone()).unwrap_or_default();
+                        lib.set(l);
+                        selected_id.set(first.clone());
+                        if let Some(p) = lib().prompts.iter().find(|p| p.id == first) {
+                            draft.set(p.prompt.clone());
+                            draft_image.set(p.image.clone().unwrap_or_default());
+                        } else {
+                            draft.set(String::new());
+                            draft_image.set(String::new());
+                        }
+                        folder_label.set(workspace_display());
+                        status.set(
+                            err.unwrap_or_else(|| format!("Opened folder · {n} prompts")),
+                        );
+                    }
+                },
+                Err(e) => status.set(e),
+            }
         }
     };
 
@@ -157,7 +189,7 @@ fn App() -> Element {
             Ok(()) => {
                 let n = l.prompts.len();
                 lib.set(l);
-                status.set(format!("Saved · {n} prompts"));
+                status.set(format!("Saved deck.json · {n} prompts"));
             }
             Err(e) => status.set(e),
         }
@@ -178,6 +210,77 @@ fn App() -> Element {
         }
         copy_to_clipboard(&text);
         status.set("Copied".into());
+    };
+
+    let mut pick_image = move |_| {
+        let mut id = selected_id();
+        // Ensure we have a card id so the file can be named.
+        if id.is_empty() {
+            let text = draft();
+            if text.trim().is_empty() {
+                status.set("Write a prompt (or Save) before linking an image".into());
+                return;
+            }
+            let mut l = lib();
+            let entry = new_prompt_entry(&title_from_prompt(&text), &text);
+            id = entry.id.clone();
+            selected_id.set(id.clone());
+            l.prompts.insert(0, entry);
+            if let Err(e) = save_library(&l) {
+                status.set(e);
+                return;
+            }
+            lib.set(l);
+        }
+
+        if let Some(path) = rfd::FileDialog::new()
+            .set_title("Associate result image with this prompt")
+            .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif", "svg"])
+            .pick_file()
+        {
+            match import_image_for_prompt(&id, &path) {
+                Ok(rel) => {
+                    draft_image.set(rel.clone());
+                    let mut l = lib();
+                    if let Some(p) = l.prompts.iter_mut().find(|p| p.id == id) {
+                        p.image = Some(rel.clone());
+                        p.updated_at = now_iso();
+                        if !draft().trim().is_empty() {
+                            p.prompt = draft();
+                            p.title = title_from_prompt(&draft());
+                        }
+                    }
+                    match save_library(&l) {
+                        Ok(()) => {
+                            lib.set(l);
+                            status.set(format!("Linked image · {rel}"));
+                        }
+                        Err(e) => status.set(e),
+                    }
+                }
+                Err(e) => status.set(e),
+            }
+        }
+    };
+
+    let mut clear_image = move |_| {
+        draft_image.set(String::new());
+        let id = selected_id();
+        if id.is_empty() {
+            return;
+        }
+        let mut l = lib();
+        if let Some(p) = l.prompts.iter_mut().find(|p| p.id == id) {
+            p.image = None;
+            p.updated_at = now_iso();
+        }
+        match save_library(&l) {
+            Ok(()) => {
+                lib.set(l);
+                status.set("Image unlinked".into());
+            }
+            Err(e) => status.set(e),
+        }
     };
 
     let q = query();
@@ -222,6 +325,12 @@ fn App() -> Element {
                     h1 { "Prompts" }
                     button { class: "btn", onclick: move |_| new_prompt(()), "New" }
                 }
+                button {
+                    class: "btn folder-btn",
+                    onclick: move |_| open_folder(()),
+                    "Open folder…"
+                }
+                p { class: "folder-path", title: "{folder_label}", "{folder_label}" }
                 input {
                     class: "search",
                     placeholder: "Search…",
@@ -265,12 +374,14 @@ fn App() -> Element {
                     value: "{draft}",
                     oninput: move |e| draft.set(e.value()),
                 }
-                label { class: "hint", "Result image (optional — file under packs/…/media/)" }
-                input {
-                    class: "search",
-                    placeholder: "my-gen.png  or leave blank",
-                    value: "{draft_image}",
-                    oninput: move |e| draft_image.set(e.value()),
+                div { class: "image-actions",
+                    button { class: "btn", onclick: move |_| pick_image(()), "Link image…" }
+                    if !draft_image().is_empty() {
+                        button { class: "btn", onclick: move |_| clear_image(()), "Unlink" }
+                        span { class: "hint", "{draft_image}" }
+                    } else {
+                        span { class: "hint", "Optional: result image for this prompt" }
+                    }
                 }
             }
 
@@ -278,13 +389,11 @@ fn App() -> Element {
                 h2 { "Result" }
                 if let Some(src) = img_url {
                     img { class: "result", src: "{src}", alt: "result" }
-                    p { class: "hint", "Image linked to this saved prompt." }
+                    p { class: "hint", "Stored under media/ in your folder." }
                 } else {
                     div { class: "result empty",
-                        p { "No image yet." }
-                        p { class: "hint",
-                            "Save a filename in media/, or drop packs/<deck>/media/<id>.png"
-                        }
+                        p { "No image linked." }
+                        p { class: "hint", "Use “Link image…” to pick a file." }
                     }
                 }
             }

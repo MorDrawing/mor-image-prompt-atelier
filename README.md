@@ -1,8 +1,29 @@
 # Mor Image Prompt Atelier
 
-A small desktop app for writing **image prompts** — one paragraph of text, like Midjourney or any other generator.
+A small desktop app for writing **image prompts** — one paragraph of text for Midjourney, Imagine, or similar tools.
 
-The main workspace is a text editor. You can **copy** the prompt out, **save** it, and optionally link a **result image** (the image that was generated from that prompt). That’s the whole product.
+- **Main workspace:** edit the prompt, **Copy**, **Save**
+- **Open folder…:** native picker chooses where files live
+- **Link image…:** optional native picker to attach a result image to that prompt
+
+## Storage (mflash folder)
+
+Prompts are stored as a loose **mflash** package in the folder you pick:
+
+```text
+your-folder/
+  deck.json     # mflash deck (prompt text on each card)
+  media/        # optional result images
+  library.json  # flat export
+  catalog.sqlite  # search index (rebuildable)
+```
+
+Each card’s `term` is the image-prompt paragraph. Linked images are copied into `media/` and referenced from the card.
+
+The last folder is remembered in `~/.config/mor-image-prompt-atelier/config.json`.  
+Override for scripts/agents: `MOR_PROMPTS_DATA=/path/to/folder`.
+
+Bundled sample prompts ship under `data/` until you open another folder.
 
 ## Run
 
@@ -23,44 +44,14 @@ sed -i "s|Exec=mor-image-prompt-atelier|Exec=$HOME/.local/bin/mor-image-prompt-a
   ~/.local/share/applications/mor-image-prompt-atelier.desktop
 ```
 
-Arch: `makepkg -si` from the project root.
-
-## Layout
-
-```
-┌─────────────┬──────────────────────────┬────────────┐
-│ Saved list  │  Prompt text (workspace) │ Result img │
-│ + search    │  Copy · Save             │ (optional) │
-└─────────────┴──────────────────────────┴────────────┘
-```
-
-1. Type or paste a prompt.
-2. **Copy** → paste into your image generator.
-3. **Save** when you want to keep it.
-4. Optional: set a filename under that card’s `media/` folder so the result image sits next to the prompt.
-
-## Data
-
-Prompts live as JSON under `data/packs/<deck>/prompts/`. Images go in `data/packs/<deck>/media/`.
-
-| Field | Use |
-|-------|-----|
-| `prompt` | The paragraph |
-| `image` | Filename in `media/` (optional) |
-| auto | `media/<id>.png` (etc.) also works |
-
-Override data dir: `MOR_PROMPTS_DATA=/path/to/data`.
-
-More pack layout detail: [`data/packs/README.md`](data/packs/README.md).
-
 ## MCP (optional)
-
-Agents can draft/store prompts via [`mcp/`](mcp/README.md):
 
 ```bash
 node mcp/server.mjs --check
 grok mcp add mor-image-prompts -- node "$(pwd)/mcp/server.mjs"
 ```
+
+See [`mcp/README.md`](mcp/README.md). Point `MOR_PROMPTS_DATA` at the same folder the desktop app uses if you want agents to share files.
 
 ## Dev
 
@@ -71,10 +62,10 @@ cargo build --release
 
 | Path | Role |
 |------|------|
-| `src/main.rs` | Desktop UI |
-| `src/library.rs` | Load/save prompts + image paths |
+| `src/main.rs` | UI (text + pickers) |
+| `src/library.rs` | Workspace, deck.json, image import |
 | `src/catalog.rs` | Search index |
-| `assets/style.css` | UI styles |
+| `assets/style.css` | Styles |
 
 ## License
 
