@@ -1,0 +1,25 @@
+{
+  "id": "starter-perpending-professor",
+  "title": "Perpending Professor",
+  "tier": "S",
+  "tags": ["professor", "noir", "scholarly", "danger"],
+  "prompt": "somberly-dressed perpending professor, brooding at night, foggy cobblestone street, dark academia, faint whiff of danger, pen and ink, delicate linework",
+  "notes": "Useful as a reusable character archetype.",
+  "created_at": "2026-07-27T00:00:00.000Z",
+  "updated_at": "2026-07-27T00:00:00.000Z",
+  "last_outcome": null,
+  "last_note": "",
+  "last_run_at": null,
+  "last_disposition_at": null,
+  "copy_count_without_scar": 0,
+  "needs_rework": false,
+  "storage": "hot",
+  "skeleton": {
+    "subject": "somberly-dressed perpending professor",
+    "action": "brooding at night",
+    "setting": "foggy cobblestone street"
+  },
+  "fragment_ids": ["flora-fog-street", "flora-crosshatch"],
+  "pack_id": "characters",
+  "subject_class": "character"
+}

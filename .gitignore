@@ -3,3 +3,7 @@
 *.pkg.tar.*
 *.pkg.tar
 /mor-image-prompt-atelier-*.pkg.tar.zst
+
+# rebuildable FTS index
+data/catalog.sqlite
+data/catalog.sqlite-*

@@ -11,14 +11,16 @@ import { randomUUID } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
+  rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { homedir } from 'node:os';
 
-const VERSION = '0.1.0';
+const VERSION = '0.3.0';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
@@ -26,16 +28,28 @@ const DATA_DIR =
   process.env.MOR_PROMPTS_DATA ||
   join(ROOT, 'data');
 const LIBRARY_PATH = join(DATA_DIR, 'library.json');
+const DESK_PATH = join(DATA_DIR, 'desk.json');
+const PACKS_DIR = join(DATA_DIR, 'packs');
 const STYLES_PATH = join(DATA_DIR, 'styles.json');
+const FLORA_PATH = join(DATA_DIR, 'flora.json');
 
-// ── IO ──────────────────────────────────────────────────────────────────────
+// ── IO (packs + desk + flat export) ─────────────────────────────────────────
+
+function sanitizePackId(raw) {
+  const s = String(raw || 'inbox')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return s || 'inbox';
+}
 
 function ensureData() {
   mkdirSync(DATA_DIR, { recursive: true });
-  if (!existsSync(LIBRARY_PATH)) {
+  mkdirSync(PACKS_DIR, { recursive: true });
+  if (!existsSync(DESK_PATH)) {
     writeFileSync(
-      LIBRARY_PATH,
-      JSON.stringify({ version: 1, prompts: [] }, null, 2) + '\n',
+      DESK_PATH,
+      JSON.stringify({ version: 1, next_experiment: null, experiment_history: [] }, null, 2) + '\n',
     );
   }
   if (!existsSync(STYLES_PATH)) {
@@ -44,21 +58,321 @@ function ensureData() {
       JSON.stringify({ version: 1, styles: [], media: [], lighting: [], composition: [], aspect_hints: {} }, null, 2) + '\n',
     );
   }
+  if (!existsSync(FLORA_PATH)) {
+    writeFileSync(
+      FLORA_PATH,
+      JSON.stringify({ version: 1, fragments: [] }, null, 2) + '\n',
+    );
+  }
+  // Bootstrap empty inbox pack
+  const inboxMeta = join(PACKS_DIR, 'inbox', 'pack.json');
+  if (!existsSync(inboxMeta)) {
+    mkdirSync(join(PACKS_DIR, 'inbox', 'prompts'), { recursive: true });
+    mkdirSync(join(PACKS_DIR, 'inbox', 'media'), { recursive: true });
+    writeFileSync(
+      inboxMeta,
+      JSON.stringify(
+        {
+          format: 'mor-prompt-pack',
+          version: 1,
+          id: 'inbox',
+          title: 'Inbox',
+          description: 'Default landing pack for new drafts.',
+          tags: ['inbox'],
+          license: 'UNLICENSE',
+        },
+        null,
+        2,
+      ) + '\n',
+    );
+  }
+}
+
+function loadDesk() {
+  ensureData();
+  if (!existsSync(DESK_PATH)) {
+    return { version: 1, next_experiment: null, experiment_history: [] };
+  }
+  const d = JSON.parse(readFileSync(DESK_PATH, 'utf8'));
+  if (!Array.isArray(d.experiment_history)) d.experiment_history = [];
+  return d;
+}
+
+function saveDesk(desk) {
+  ensureData();
+  desk.version = desk.version || 1;
+  writeFileSync(DESK_PATH, JSON.stringify(desk, null, 2) + '\n');
+}
+
+function ensurePackMeta(packId, titleHint) {
+  const id = sanitizePackId(packId);
+  const dir = join(PACKS_DIR, id);
+  mkdirSync(join(dir, 'prompts'), { recursive: true });
+  mkdirSync(join(dir, 'media'), { recursive: true });
+  const metaPath = join(dir, 'pack.json');
+  if (existsSync(metaPath)) {
+    return JSON.parse(readFileSync(metaPath, 'utf8'));
+  }
+  const title =
+    titleHint ||
+    id
+      .split(/[-_]/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  const meta = {
+    format: 'mor-prompt-pack',
+    version: 1,
+    id,
+    title,
+    description: `Prompt pack: ${id}`,
+    tags: [id],
+    license: 'UNLICENSE',
+  };
+  writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n');
+  return meta;
+}
+
+function inferSubjectClass(p) {
+  if (p.subject_class && String(p.subject_class).trim()) {
+    return String(p.subject_class).trim().toLowerCase();
+  }
+  const blob = `${(p.tags || []).join(' ')} ${p.title || ''} ${p.skeleton?.subject || ''}`.toLowerCase();
+  if (/animal|pitbull|dog|cat|bird/.test(blob)) return 'animal';
+  if (/poster|mucha|banner/.test(blob)) return 'poster';
+  if (/professor|wordsmith|scholar|character|anime|person/.test(blob)) return 'character';
+  if (/street|atelier|landscape|interior|scene/.test(blob)) return 'scene';
+  return 'other';
 }
 
 function loadLibrary() {
   ensureData();
-  return JSON.parse(readFileSync(LIBRARY_PATH, 'utf8'));
+  const desk = loadDesk();
+  const lib = {
+    version: 3,
+    next_experiment: desk.next_experiment || null,
+    experiment_history: desk.experiment_history || [],
+    prompts: [],
+    packs: {},
+  };
+
+  let packDirs = [];
+  try {
+    packDirs = readdirSync(PACKS_DIR).filter((name) => {
+      try {
+        return statSync(join(PACKS_DIR, name)).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    packDirs = [];
+  }
+
+  // Legacy: only library.json, no packs yet
+  if (!packDirs.length && existsSync(LIBRARY_PATH)) {
+    const flat = JSON.parse(readFileSync(LIBRARY_PATH, 'utf8'));
+    lib.prompts = Array.isArray(flat.prompts) ? flat.prompts : [];
+    if (!lib.next_experiment && flat.next_experiment) lib.next_experiment = flat.next_experiment;
+    if (!lib.experiment_history?.length && Array.isArray(flat.experiment_history)) {
+      lib.experiment_history = flat.experiment_history;
+    }
+    for (const p of lib.prompts) {
+      if (!p.pack_id) p.pack_id = 'inbox';
+      p.pack_id = sanitizePackId(p.pack_id);
+      p.subject_class = inferSubjectClass(p);
+    }
+    saveLibrary(lib);
+    return loadLibrary();
+  }
+
+  for (const packId of packDirs) {
+    if (packId.startsWith('.')) continue;
+    const meta = ensurePackMeta(packId);
+    lib.packs[packId] = meta;
+    const promptsDir = join(PACKS_DIR, packId, 'prompts');
+    if (!existsSync(promptsDir)) continue;
+    for (const file of readdirSync(promptsDir)) {
+      if (!file.endsWith('.json')) continue;
+      const raw = JSON.parse(readFileSync(join(promptsDir, file), 'utf8'));
+      raw.pack_id = sanitizePackId(raw.pack_id || packId);
+      raw.subject_class = inferSubjectClass(raw);
+      lib.prompts.push(raw);
+    }
+  }
+
+  lib.prompts.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+  return lib;
+}
+
+function reworkIds(lib) {
+  return (lib.prompts || []).filter((p) => p.needs_rework).map((p) => p.id);
 }
 
 function saveLibrary(lib) {
   ensureData();
-  writeFileSync(LIBRARY_PATH, JSON.stringify(lib, null, 2) + '\n');
+  lib.version = 3;
+  delete lib.rework_queue;
+
+  saveDesk({
+    version: 1,
+    next_experiment: lib.next_experiment || null,
+    experiment_history: lib.experiment_history || [],
+  });
+
+  const keep = new Set();
+  for (const p of lib.prompts || []) {
+    p.pack_id = sanitizePackId(p.pack_id || 'inbox');
+    p.subject_class = inferSubjectClass(p);
+    ensurePackMeta(p.pack_id);
+    const path = join(PACKS_DIR, p.pack_id, 'prompts', `${p.id}.json`);
+    writeFileSync(path, JSON.stringify(p, null, 2) + '\n');
+    keep.add(path);
+  }
+
+  // GC removed prompt files
+  try {
+    for (const packId of readdirSync(PACKS_DIR)) {
+      const promptsDir = join(PACKS_DIR, packId, 'prompts');
+      if (!existsSync(promptsDir)) continue;
+      for (const file of readdirSync(promptsDir)) {
+        if (!file.endsWith('.json')) continue;
+        const path = join(promptsDir, file);
+        if (!keep.has(path)) {
+          try {
+            rmSync(path);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  // Flat export for grep / older tooling
+  const exportLib = {
+    version: 3,
+    next_experiment: lib.next_experiment || null,
+    experiment_history: lib.experiment_history || [],
+    prompts: lib.prompts || [],
+  };
+  writeFileSync(LIBRARY_PATH, JSON.stringify(exportLib, null, 2) + '\n');
+}
+
+function listPacks() {
+  const lib = loadLibrary();
+  const packs = {};
+  for (const p of lib.prompts || []) {
+    const id = sanitizePackId(p.pack_id || 'inbox');
+    if (!packs[id]) {
+      packs[id] = {
+        id,
+        title: lib.packs?.[id]?.title || id,
+        tags: lib.packs?.[id]?.tags || [],
+        count: 0,
+        hot: 0,
+        rework: 0,
+      };
+    }
+    packs[id].count += 1;
+    if ((p.storage || 'hot') === 'hot') packs[id].hot += 1;
+    if (p.needs_rework) packs[id].rework += 1;
+  }
+  // include empty known packs
+  for (const [id, meta] of Object.entries(lib.packs || {})) {
+    if (!packs[id]) {
+      packs[id] = {
+        id,
+        title: meta.title || id,
+        tags: meta.tags || [],
+        count: 0,
+        hot: 0,
+        rework: 0,
+      };
+    }
+  }
+  return {
+    count: Object.keys(packs).length,
+    packs: Object.values(packs).sort((a, b) => b.count - a.count || a.id.localeCompare(b.id)),
+    data_layout: {
+      packs: PACKS_DIR,
+      desk: DESK_PATH,
+      export: LIBRARY_PATH,
+    },
+  };
 }
 
 function loadStyles() {
   ensureData();
   return JSON.parse(readFileSync(STYLES_PATH, 'utf8'));
+}
+
+function loadFlora() {
+  ensureData();
+  return JSON.parse(readFileSync(FLORA_PATH, 'utf8'));
+}
+
+function saveFlora(flora) {
+  ensureData();
+  writeFileSync(FLORA_PATH, JSON.stringify(flora, null, 2) + '\n');
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function clauseSet(prompt) {
+  return new Set(
+    String(prompt || '')
+      .split(/[,;]+/)
+      .map((s) => s.trim().toLowerCase().replace(/\s+/g, ' '))
+      .filter((s) => s.length > 3),
+  );
+}
+
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0;
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter += 1;
+  const union = new Set([...a, ...b]).size;
+  return union ? inter / union : 0;
+}
+
+function findCousins(lib, prompt, excludeId) {
+  const needle = clauseSet(prompt);
+  const hits = [];
+  for (const p of lib.prompts || []) {
+    if (excludeId && p.id === excludeId) continue;
+    const sim = jaccard(needle, clauseSet(p.prompt));
+    if (sim >= 0.55) hits.push({ id: p.id, title: p.title, similarity: Math.round(sim * 100) / 100 });
+  }
+  hits.sort((a, b) => b.similarity - a.similarity);
+  return hits;
+}
+
+function pickFlora(flora, { styleId, slot, pool, max = 1, already = [] }) {
+  const alreadyLower = already.map((t) => String(t).toLowerCase());
+  let candidates = (flora.fragments || []).filter((f) => f.slot === slot);
+  if (pool && pool !== 'any') {
+    candidates = candidates.filter((f) => f.pool === pool || !f.pool);
+  }
+  if (styleId) {
+    candidates = candidates.filter(
+      (f) => !f.style_affinity?.length || f.style_affinity.includes(styleId),
+    );
+  }
+  candidates = candidates.filter((f) => !alreadyLower.includes(String(f.text).toLowerCase()));
+  candidates.sort((a, b) => (b.weight || 0) - (a.weight || 0));
+  return candidates.slice(0, max);
+}
+
+function bumpFlora(flora, fragmentIds, delta) {
+  for (const id of fragmentIds || []) {
+    const f = (flora.fragments || []).find((x) => x.id === id);
+    if (f) f.weight = Math.max(1, Math.min(50, (f.weight || 1) + delta));
+  }
 }
 
 // ── Prompt craft (deterministic structure for Grok) ─────────────────────────
@@ -243,11 +557,6 @@ function critiquePrompt(prompt) {
   };
 }
 
-function pick(arr, i = 0) {
-  if (!arr?.length) return '';
-  return arr[i % arr.length];
-}
-
 function stylePhrases(styleId, stylesData) {
   const s = (stylesData.styles || []).find((x) => x.id === styleId);
   return s?.phrases || [];
@@ -275,16 +584,16 @@ function improvePrompt(args) {
   if (!critique.present_slots.includes('medium')) {
     const fromStyle = goalStyle ? stylePhrases(goalStyle, stylesData) : [];
     const mediumish = fromStyle.find((p) => /ink|texture|linework|grain|oil|print/i.test(p));
-    additions.push(mediumish || pick(stylesData.media, 0));
+    additions.push(mediumish || stylesData.media?.[0] || '');
   }
   if (!critique.present_slots.includes('lighting')) {
     if (goalStyle === 'pc98') additions.push('stippled shadows');
     else if (goalStyle === 'noir' || goalStyle === 'dark-academia') additions.push('candlelight and long shadows');
-    else additions.push(pick(stylesData.lighting, 2));
+    else additions.push(stylesData.lighting?.[2] || stylesData.lighting?.[0] || '');
   }
   if (!critique.present_slots.includes('composition') && intensity !== 'lean') {
     if (goalStyle === 'mucha') additions.push('art nouveau poster composition, ornate frame');
-    else additions.push(pick(stylesData.composition, 0));
+    else additions.push(stylesData.composition?.[0] || '');
   }
   if (goalStyle && !critique.detected_styles.includes(goalStyle)) {
     const phrases = stylePhrases(goalStyle, stylesData);
@@ -312,44 +621,21 @@ function improvePrompt(args) {
     merged.push(c.trim());
   }
 
-  // Reorder: keep original subject first, then rest
-  let improved = merged.join(', ');
-  if (intensity === 'rich' && !/[.!?]$/.test(improved)) {
-    // leave as clause list — natural for image models
-  }
-
-  const altLean = merged.slice(0, Math.min(5, merged.length)).join(', ');
-  const altRich = (() => {
-    const more = [...merged];
-    if (goalStyle) {
-      for (const p of stylePhrases(goalStyle, stylesData).slice(0, 3)) {
-        if (!more.some((m) => m.toLowerCase().includes(p.toLowerCase()))) more.push(p);
-      }
-    }
-    return more.join(', ');
-  })();
-
-  // Prose form alternative (Imagine prefers 2–5 sentences)
+  const improved = merged.join(', ');
   const prose = toProse(merged, goalStyle);
 
   return {
     original: prompt,
     improved,
     prose_variant: prose,
-    alternatives: [
-      { id: 'lean', prompt: altLean },
-      { id: 'rich', prompt: altRich },
-      { id: 'prose', prompt: prose },
-    ],
     critique,
     applied_style: goalStyle,
     aspect_ratio_hint: aspect
       ? { aspect_ratio: aspect, use: stylesData.aspect_hints?.[aspect] || null }
       : null,
     notes_for_agent: [
-      'Prefer the improved clause list for tag-style models; use prose_variant for Imagine/Grok image tools.',
-      'If generating with Imagine: front-load subject, one scene, no negative prompts.',
-      'Save keepers with save_prompt.',
+      'Prefer improved for tag-style models; prose_variant for Imagine/Grok image tools.',
+      'Imagine: front-load subject, one scene, no negatives. Save keepers with save_prompt.',
     ],
   };
 }
@@ -372,7 +658,9 @@ function toProse(clauses, styleId) {
 
 function buildPrompt(args) {
   const stylesData = loadStyles();
+  const flora = loadFlora();
   const parts = [];
+  const usedFlora = [];
   if (args.subject) parts.push(String(args.subject).trim());
   if (args.action) parts.push(String(args.action).trim());
   if (args.setting) parts.push(String(args.setting).trim());
@@ -380,40 +668,39 @@ function buildPrompt(args) {
   const styleId = args.style || null;
   if (styleId) {
     const phrases = stylePhrases(styleId, stylesData);
-    if (args.include_style_phrases !== false && phrases.length) {
-      parts.push(phrases[0]);
-      if (args.rich) parts.push(...phrases.slice(1, 3));
-    } else {
-      parts.push(styleId);
-    }
+    if (phrases.length) parts.push(phrases[0]);
+    else parts.push(styleId);
   } else if (args.style_phrase) {
     parts.push(String(args.style_phrase).trim());
   }
 
   if (args.medium) parts.push(String(args.medium).trim());
-  else if (args.rich) parts.push(pick(stylesData.media, 0));
+  else {
+    for (const f of pickFlora(flora, { styleId, slot: 'medium', max: 1, already: parts })) {
+      parts.push(f.text);
+      usedFlora.push(f.id);
+    }
+  }
 
   if (args.composition) parts.push(String(args.composition).trim());
+
   if (args.lighting) parts.push(String(args.lighting).trim());
-  else if (args.rich) parts.push(pick(stylesData.lighting, 2));
+  else {
+    for (const f of pickFlora(flora, { styleId, slot: 'lighting', max: 1, already: parts })) {
+      parts.push(f.text);
+      usedFlora.push(f.id);
+    }
+  }
 
   if (args.extra) parts.push(String(args.extra).trim());
 
+  const floraCapped = usedFlora.slice(0, 2);
   const clause = parts.filter(Boolean).join(', ');
-  const critique = critiquePrompt(clause);
   return {
     prompt: clause,
     prose_variant: toProse(parts.filter(Boolean), styleId),
-    critique,
-    slots_used: {
-      subject: args.subject || null,
-      action: args.action || null,
-      setting: args.setting || null,
-      style: styleId,
-      medium: args.medium || null,
-      composition: args.composition || null,
-      lighting: args.lighting || null,
-    },
+    critique: critiquePrompt(clause),
+    flora_used: floraCapped,
   };
 }
 
@@ -468,19 +755,55 @@ function listLibrary(args = {}) {
         (p.title || '').toLowerCase().includes(q) ||
         (p.prompt || '').toLowerCase().includes(q) ||
         (p.notes || '').toLowerCase().includes(q) ||
+        (p.pack_id || '').toLowerCase().includes(q) ||
+        (p.subject_class || '').toLowerCase().includes(q) ||
         (p.tags || []).some((x) => x.toLowerCase().includes(q)),
     );
   }
   if (args.tier) {
     items = items.filter((p) => (p.tier || '').toUpperCase() === String(args.tier).toUpperCase());
   }
+  if (args.outcome) {
+    const o = String(args.outcome).toLowerCase();
+    items = items.filter((p) => (p.last_outcome || '').toLowerCase() === o);
+  }
+  if (args.needs_rework === true || args.needs_rework === 'true') {
+    items = items.filter((p) => p.needs_rework);
+  }
+  if (args.storage) {
+    items = items.filter((p) => (p.storage || 'hot') === args.storage);
+  }
+  if (args.pack || args.pack_id) {
+    const pack = sanitizePackId(args.pack || args.pack_id);
+    items = items.filter((p) => sanitizePackId(p.pack_id || 'inbox') === pack);
+  }
+  if (args.subject_class || args.class) {
+    const sc = String(args.subject_class || args.class).toLowerCase();
+    items = items.filter((p) => inferSubjectClass(p) === sc);
+  }
+  // Prefer rework / pending scars first
+  items = [...items].sort((a, b) => {
+    const score = (p) =>
+      (p.needs_rework ? 100 : 0) +
+      (!p.last_outcome && (p.copy_count_without_scar || 0) > 0 ? 50 : 0) +
+      ((p.storage || 'hot') === 'hot' ? 10 : 0);
+    return score(b) - score(a);
+  });
   return {
     count: items.length,
+    rework_queue: reworkIds(lib),
+    next_experiment: lib.next_experiment || null,
+    packs: listPacks().packs,
     prompts: items.map((p) => ({
       id: p.id,
       title: p.title,
       tier: p.tier,
       tags: p.tags,
+      pack_id: p.pack_id || 'inbox',
+      subject_class: inferSubjectClass(p),
+      last_outcome: p.last_outcome || null,
+      needs_rework: !!p.needs_rework,
+      storage: p.storage || 'hot',
       prompt_preview: (p.prompt || '').slice(0, 120),
       updated_at: p.updated_at,
     })),
@@ -498,7 +821,8 @@ function savePrompt(args) {
   const prompt = String(args.prompt || '').trim();
   if (!prompt) throw new Error('prompt is required');
   const lib = loadLibrary();
-  const now = new Date().toISOString();
+  const now = nowIso();
+  const cousins = findCousins(lib, prompt, args.id || null);
   let entry;
   if (args.id) {
     const idx = (lib.prompts || []).findIndex((x) => x.id === args.id);
@@ -512,6 +836,17 @@ function savePrompt(args) {
       notes: args.notes ?? lib.prompts[idx].notes,
       updated_at: now,
     };
+    if (args.storage) {
+      entry.storage = args.storage;
+      if (args.storage === 'compost') entry.needs_rework = false;
+    }
+    if (args.skeleton) entry.skeleton = args.skeleton;
+    if (args.fragment_ids) entry.fragment_ids = args.fragment_ids;
+    if (args.pack_id || args.pack) {
+      entry.pack_id = sanitizePackId(args.pack_id || args.pack);
+    }
+    if (args.subject_class) entry.subject_class = String(args.subject_class).toLowerCase();
+    else entry.subject_class = inferSubjectClass(entry);
     lib.prompts[idx] = entry;
   } else {
     entry = {
@@ -523,12 +858,194 @@ function savePrompt(args) {
       notes: args.notes || '',
       created_at: now,
       updated_at: now,
+      last_outcome: null,
+      last_note: '',
+      last_run_at: null,
+      last_disposition_at: null,
+      copy_count_without_scar: 0,
+      needs_rework: false,
+      storage: args.storage || 'hot',
+      skeleton: args.skeleton || null,
+      fragment_ids: args.fragment_ids || [],
+      pack_id: sanitizePackId(args.pack_id || args.pack || 'inbox'),
+      subject_class: args.subject_class
+        ? String(args.subject_class).toLowerCase()
+        : null,
     };
+    entry.subject_class = inferSubjectClass(entry);
     lib.prompts = lib.prompts || [];
     lib.prompts.unshift(entry);
   }
+
+  // Weight flora by tier on save
+  if (entry.fragment_ids?.length) {
+    const flora = loadFlora();
+    const delta = { SS: 2, S: 1, A: 0, B: -1, C: -2 }[String(entry.tier || '').toUpperCase()] ?? 0;
+    if (delta) {
+      bumpFlora(flora, entry.fragment_ids, delta);
+      saveFlora(flora);
+    }
+  }
+
   saveLibrary(lib);
-  return { saved: true, entry };
+  return {
+    saved: true,
+    entry,
+    cousins,
+    cousin_warning:
+      cousins.length > 0
+        ? 'Near-duplicates detected — merge or diverge intentionally before flooding the cabinet.'
+        : null,
+  };
+}
+
+function recordOutcome(args) {
+  const id = args.id;
+  if (!id) throw new Error('id is required');
+  const outcome = String(args.outcome || '').toLowerCase();
+  if (!['won', 'failed', 'ambiguous'].includes(outcome)) {
+    throw new Error('outcome must be won | failed | ambiguous');
+  }
+  const lib = loadLibrary();
+  const idx = (lib.prompts || []).findIndex((x) => x.id === id);
+  if (idx < 0) throw new Error(`prompt not found: ${id}`);
+  const now = nowIso();
+  const note = args.note != null ? String(args.note) : lib.prompts[idx].last_note || '';
+  lib.prompts[idx].last_outcome = outcome;
+  lib.prompts[idx].last_note = note;
+  lib.prompts[idx].last_disposition_at = now;
+  lib.prompts[idx].last_run_at = now;
+  lib.prompts[idx].copy_count_without_scar = 0;
+  lib.prompts[idx].updated_at = now;
+
+  if (outcome === 'failed' || outcome === 'ambiguous') {
+    lib.prompts[idx].needs_rework = true;
+    lib.next_experiment = {
+      prompt_id: id,
+      action: 'rework',
+      note: note || `Rework after ${outcome}`,
+      status: 'open',
+      updated_at: now,
+    };
+  } else {
+    lib.prompts[idx].needs_rework = false;
+    const flora = loadFlora();
+    bumpFlora(flora, lib.prompts[idx].fragment_ids || [], 2);
+    saveFlora(flora);
+  }
+
+  saveLibrary(lib);
+  return { recorded: true, entry: lib.prompts[idx], rework_queue: reworkIds(lib) };
+}
+
+function markCopied(args) {
+  const id = args.id;
+  if (!id) throw new Error('id is required');
+  const lib = loadLibrary();
+  const idx = (lib.prompts || []).findIndex((x) => x.id === id);
+  if (idx < 0) throw new Error(`prompt not found: ${id}`);
+  const now = nowIso();
+  lib.prompts[idx].last_run_at = now;
+  if (!lib.prompts[idx].last_outcome) {
+    lib.prompts[idx].copy_count_without_scar = (lib.prompts[idx].copy_count_without_scar || 0) + 1;
+  }
+  lib.prompts[idx].updated_at = now;
+  lib.next_experiment = {
+    prompt_id: id,
+    action: 'rework',
+    note: `Log outcome for: ${lib.prompts[idx].title || id}`,
+    status: 'open',
+    updated_at: now,
+  };
+  saveLibrary(lib);
+  return {
+    marked: true,
+    cold_nag: !lib.prompts[idx].last_outcome && lib.prompts[idx].copy_count_without_scar >= 2,
+    entry: lib.prompts[idx],
+    next_experiment: lib.next_experiment,
+  };
+}
+
+function getNextExperiment() {
+  const lib = loadLibrary();
+  return {
+    next_experiment: lib.next_experiment || null,
+    rework_queue: reworkIds(lib),
+    experiment_history: (lib.experiment_history || []).slice(0, 10),
+  };
+}
+
+/** Pin a mission, or finish it with `finish: "done"|"dismissed"`. */
+function setNextExperiment(args) {
+  const lib = loadLibrary();
+  const now = nowIso();
+  if (args.finish) {
+    const status = args.finish === 'done' ? 'done' : 'dismissed';
+    if (!lib.next_experiment) {
+      return { completed: false, reason: 'no open experiment' };
+    }
+    lib.experiment_history = lib.experiment_history || [];
+    lib.experiment_history.unshift({
+      prompt_id: lib.next_experiment.prompt_id,
+      action: lib.next_experiment.action,
+      note: args.note != null ? String(args.note) : lib.next_experiment.note,
+      status,
+      closed_at: now,
+    });
+    lib.experiment_history = lib.experiment_history.slice(0, 40);
+    lib.next_experiment = null;
+    saveLibrary(lib);
+    return {
+      completed: true,
+      next_experiment: null,
+      experiment_history: lib.experiment_history.slice(0, 5),
+    };
+  }
+  if (!args.prompt_id) throw new Error('prompt_id is required (or finish: "done"|"dismissed")');
+  lib.next_experiment = {
+    prompt_id: String(args.prompt_id),
+    action: String(args.action || 'custom'),
+    note: String(args.note || ''),
+    status: 'open',
+    updated_at: now,
+  };
+  saveLibrary(lib);
+  return { set: true, next_experiment: lib.next_experiment };
+}
+
+function listFlora(args = {}) {
+  const flora = loadFlora();
+  let items = flora.fragments || [];
+  if (args.slot) items = items.filter((f) => f.slot === args.slot);
+  if (args.pool) items = items.filter((f) => f.pool === args.pool);
+  if (args.style) {
+    items = items.filter(
+      (f) => !f.style_affinity?.length || f.style_affinity.includes(args.style),
+    );
+  }
+  items = [...items].sort((a, b) => (b.weight || 0) - (a.weight || 0));
+  return { count: items.length, fragments: items };
+}
+
+function roulette(args = {}) {
+  const lib = loadLibrary();
+  const styles = loadStyles();
+  const prompts = (lib.prompts || []).filter((p) => (p.storage || 'hot') !== 'compost');
+  const packs = styles.styles || [];
+  if (!prompts.length || !packs.length) throw new Error('need prompts and styles');
+  const p = prompts[Math.floor(Math.random() * prompts.length)];
+  const s = packs[Math.floor(Math.random() * packs.length)];
+  const core = splitClauses(p.prompt).slice(0, Number(args.core_clauses) || 3);
+  const phrases = (s.phrases || []).slice(0, 2);
+  const mash = [...core, ...phrases].filter(Boolean).join(', ');
+  return {
+    source_prompt_id: p.id,
+    source_title: p.title,
+    style_id: s.id,
+    style_name: s.name,
+    prompt: mash,
+    prose_variant: toProse([...core, ...phrases], s.id),
+  };
 }
 
 function deletePrompt(id) {
@@ -544,14 +1061,26 @@ function getHandbook() {
   return {
     name: 'Mor Image Prompt Atelier',
     version: VERSION,
-    purpose: 'Draft, critique, improve, and store image-generation prompts for Grok / Imagine / local atelier.',
+    purpose:
+      'Living local desk for image prompts: draft, critique, ship, scar outcomes, rework, and compound craft DNA (flora).',
+    practice_loop: [
+      'Draft subject-first (slots).',
+      'build_prompt / improve_prompt — flora fills empty lighting/medium (max 2).',
+      'Copy / generate externally (Imagine etc.).',
+      'record_outcome won|failed|ambiguous + note.',
+      'Failed/ambiguous → rework; improve with last_note context.',
+      'set_next_experiment before ending a session.',
+      'Cull: save_prompt with storage cold|compost; keep hot shelf small.',
+    ],
     workflow: [
-      '1. Optional: list_styles / list_library for inspiration.',
-      '2. build_prompt with slots OR improve_prompt on a rough draft.',
-      '3. critique_prompt to see remaining gaps.',
-      '4. vary_prompt for style/lighting alternatives.',
-      '5. save_prompt when a keeper is ready.',
-      '6. For image generation: use prose_variant with Imagine; front-load subject; one scene; no negatives.',
+      '1. get_next_experiment / list_library (rework first).',
+      '2. list_styles / list_flora for craft DNA.',
+      '3. build_prompt with slots OR improve_prompt on a rough draft.',
+      '4. critique_prompt to see remaining gaps.',
+      '5. vary_prompt or roulette for alternatives.',
+      '6. save_prompt (cousin warnings if near-duplicates; storage for shelf).',
+      '7. mark_copied when shipping; record_outcome after the image returns.',
+      '8. set_next_experiment; finish: "done" when finished.',
     ],
     craft_order: 'subject → action/pose → setting → style → medium → composition → lighting/mood',
     mor_flavor: [
@@ -567,10 +1096,15 @@ function getHandbook() {
       'Match aspect_ratio to use case (16:9 banner, 9:16 story, 1:1 icon)',
     ],
     data_paths: {
-      library: LIBRARY_PATH,
+      packs: PACKS_DIR,
+      desk: DESK_PATH,
+      library_export: LIBRARY_PATH,
       styles: STYLES_PATH,
+      flora: FLORA_PATH,
       data_dir: DATA_DIR,
     },
+    layout:
+      'packs/<id>/prompts/*.json (content) + desk.json (missions) + library.json (flat export). Classification: pack_id, tier, storage, subject_class, tags.',
     tools: TOOLS.map((t) => t.name),
   };
 }
@@ -610,7 +1144,7 @@ const TOOLS = [
   {
     name: 'improve_prompt',
     description:
-      'Structurally improve an image prompt: fill missing slots, strip weak negatives, optionally apply a style pack. Returns improved clause list, prose variant, and alternatives (lean/rich/prose).',
+      'Structurally improve an image prompt: fill missing slots, strip weak negatives, optionally apply a style pack. Returns improved clause list + prose_variant.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -635,7 +1169,7 @@ const TOOLS = [
   {
     name: 'build_prompt',
     description:
-      'Assemble a prompt from structured slots (subject, action, setting, style, medium, composition, lighting).',
+      'Assemble a prompt from structured slots. Empty lighting/medium pull up to 2 weighted flora fragments.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -648,11 +1182,6 @@ const TOOLS = [
         composition: { type: 'string' },
         lighting: { type: 'string' },
         extra: { type: 'string' },
-        rich: { type: 'boolean', description: 'Pull extra phrases from style pack' },
-        include_style_phrases: {
-          type: 'boolean',
-          description: 'Default true — inject pack phrases when style id given',
-        },
       },
       required: ['subject'],
     },
@@ -672,19 +1201,35 @@ const TOOLS = [
   },
   {
     name: 'list_library',
-    description: 'List saved prompts in the local atelier library (id, title, tier, tags, preview).',
+    description:
+      'List saved prompts (rework/pending scars first). Filters: q, tag, tier, outcome, needs_rework, storage, pack, subject_class.',
     inputSchema: {
       type: 'object',
       properties: {
-        q: { type: 'string', description: 'Search title/prompt/tags/notes' },
+        q: { type: 'string', description: 'Search title/prompt/tags/notes/pack/class' },
         tag: { type: 'string', description: 'Exact tag filter' },
         tier: { type: 'string', description: 'SS | S | A | B | C' },
+        outcome: { type: 'string', description: 'won | failed | ambiguous' },
+        needs_rework: { type: 'boolean' },
+        storage: { type: 'string', description: 'hot | cold | compost' },
+        pack: { type: 'string', description: 'Pack id (e.g. murdoch-core, characters)' },
+        pack_id: { type: 'string', description: 'Alias for pack' },
+        subject_class: {
+          type: 'string',
+          description: 'character | animal | scene | poster | other',
+        },
       },
     },
   },
   {
+    name: 'list_packs',
+    description:
+      'List prompt packs (shelves) with counts. Layout: data/packs/<id>/prompts/*.json.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
     name: 'get_prompt',
-    description: 'Fetch a full saved prompt by id.',
+    description: 'Fetch a full saved prompt by id (includes scars, skeleton, fragment_ids).',
     inputSchema: {
       type: 'object',
       properties: { id: { type: 'string' } },
@@ -694,7 +1239,7 @@ const TOOLS = [
   {
     name: 'save_prompt',
     description:
-      'Save a new prompt or update an existing one (pass id to update). Auto-tiers from critique if tier omitted.',
+      'Save or update a prompt. Auto-tiers if omitted. Returns cousin near-duplicate warnings. Bumps linked flora weights by tier.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -707,6 +1252,28 @@ const TOOLS = [
           items: { type: 'string' },
         },
         notes: { type: 'string' },
+        storage: {
+          type: 'string',
+          description: 'hot | cold | compost (shelf; compost clears needs_rework)',
+        },
+        pack_id: {
+          type: 'string',
+          description: 'Pack shelf id (default inbox). e.g. murdoch-core, characters, poster-icons',
+        },
+        pack: { type: 'string', description: 'Alias for pack_id' },
+        subject_class: {
+          type: 'string',
+          description: 'character | animal | scene | poster | other (auto-inferred if omitted)',
+        },
+        skeleton: {
+          type: 'object',
+          description: '{ subject, action, setting } for JIT re-assembly',
+        },
+        fragment_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Linked flora fragment ids',
+        },
       },
       required: ['prompt'],
     },
@@ -718,6 +1285,74 @@ const TOOLS = [
       type: 'object',
       properties: { id: { type: 'string' } },
       required: ['id'],
+    },
+  },
+  {
+    name: 'record_outcome',
+    description:
+      'Scar a prompt after external generation (won|failed|ambiguous). Failed/ambiguous set needs_rework + next_experiment.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        outcome: { type: 'string', description: 'won | failed | ambiguous' },
+        note: { type: 'string', description: 'Why it worked or failed' },
+      },
+      required: ['id', 'outcome'],
+    },
+  },
+  {
+    name: 'mark_copied',
+    description:
+      'Mark that a prompt was shipped/copied for generation. Soft cold-nag after 2 copies without a scar. Sets next_experiment.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' } },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'get_next_experiment',
+    description: 'Read the open What\'s next mission, rework ids (from needs_rework), and recent history.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'set_next_experiment',
+    description:
+      'Pin a What\'s next mission (prompt_id + note), or finish it with finish: "done"|"dismissed".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        prompt_id: { type: 'string' },
+        action: { type: 'string', description: 'Free-form label (e.g. rework, custom)' },
+        note: { type: 'string' },
+        finish: {
+          type: 'string',
+          description: 'done | dismissed — archive the open mission',
+        },
+      },
+    },
+  },
+  {
+    name: 'list_flora',
+    description: 'List micro-prompt flora fragments (craft DNA) with weights, slots, pools.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        slot: { type: 'string', description: 'lighting | medium | composition | setting' },
+        pool: { type: 'string', description: 'murdoch-core | experimental' },
+        style: { type: 'string', description: 'Filter by style_affinity' },
+      },
+    },
+  },
+  {
+    name: 'roulette',
+    description: 'Random library prompt core × random style pack — serendipity mashup.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        core_clauses: { type: 'number', description: 'How many leading clauses to keep (default 3)' },
+      },
     },
   },
 ];
@@ -759,12 +1394,26 @@ function callTool(name, args = {}) {
       return varyPrompt(args);
     case 'list_library':
       return listLibrary(args);
+    case 'list_packs':
+      return listPacks();
     case 'get_prompt':
       return getLibraryPrompt(args.id);
     case 'save_prompt':
       return savePrompt(args);
     case 'delete_prompt':
       return deletePrompt(args.id);
+    case 'record_outcome':
+      return recordOutcome(args);
+    case 'mark_copied':
+      return markCopied(args);
+    case 'get_next_experiment':
+      return getNextExperiment();
+    case 'set_next_experiment':
+      return setNextExperiment(args);
+    case 'list_flora':
+      return listFlora(args);
+    case 'roulette':
+      return roulette(args);
     default:
       throw new Error(`unknown tool ${name}`);
   }
@@ -816,7 +1465,30 @@ if (process.argv.includes('--check')) {
     'a grey pitbull in the style of Alphonse Mucha, art nouveau poster',
   );
   const i = improvePrompt({ prompt: 'sad wizard', style: 'pc98' });
-  console.log(JSON.stringify({ ok: true, version: VERSION, handbook_tools: h.tools, critique_tier: c.tier, improved: i.improved }, null, 2));
+  const b = buildPrompt({ subject: 'three wordsmiths at a typewriter', style: 'pc98' });
+  const flora = listFlora({ pool: 'murdoch-core' });
+  const roul = roulette({});
+  const packs = listPacks();
+  const lib = listLibrary({});
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        version: VERSION,
+        handbook_tools: h.tools,
+        critique_tier: c.tier,
+        improved: i.improved,
+        build_flora: b.flora_used,
+        flora_count: flora.count,
+        roulette_style: roul.style_id,
+        pack_count: packs.count,
+        prompt_count: lib.count,
+        layout: h.layout,
+      },
+      null,
+      2,
+    ),
+  );
   process.exit(0);
 }
 

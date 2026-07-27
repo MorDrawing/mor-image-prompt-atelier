@@ -53,312 +53,31 @@ textarea {
   font: inherit;
 }
 
-/* ── Shell / frameless chrome ───────────────────────────────────────── */
-
-.mor-root {
-  height: 100vh;
-  width: 100vw;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--mor-bg);
-  overflow: hidden;
-  position: relative;
-}
-
-.mor-headerbar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  min-height: 46px;
-  flex-shrink: 0;
-  background: var(--mor-header);
-  border-bottom: 1px solid var(--mor-border);
-  user-select: none;
-}
-
-.mor-headerbar-start,
-.mor-headerbar-center,
-.mor-headerbar-end {
-  display: flex;
-  align-items: center;
-  height: 100%;
-}
-
-.mor-headerbar-start {
-  justify-content: flex-start;
-  padding-left: 8px;
-  gap: 6px;
-}
-
-.mor-headerbar-center {
-  justify-content: center;
-}
-
-.mor-headerbar-end {
-  justify-content: flex-end;
-  padding-right: 6px;
-  gap: 6px;
-}
-
-.mor-window-title-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.mor-window-title {
-  font-family: var(--mor-font);
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--mor-text);
-}
-
-.mor-window-subtitle {
-  font-family: var(--mor-font);
-  font-size: 11px;
-  color: var(--mor-text-muted);
-  margin-top: -2px;
-}
-
-.mor-window-controls {
-  display: flex;
-  gap: 4px;
-  margin-left: 8px;
-}
-
-.window-btn {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--mor-text-muted);
-  cursor: default;
-  font-family: sans-serif;
-  font-size: 14px;
-  transition: background 0.1s, color 0.1s;
-}
-
-.window-btn:hover {
-  background: var(--mor-btn-hover);
-  color: var(--mor-text);
-}
-
-.window-btn.close:hover {
-  background: var(--mor-destructive);
-  color: white;
-}
-
-.mor-resize-edge {
-  position: absolute;
-  z-index: 9999;
-}
-
-.mor-resize-edge.top {
-  top: 0;
-  left: 6px;
-  right: 6px;
-  height: 6px;
-  cursor: n-resize;
-}
-
-.mor-resize-edge.bottom {
-  bottom: 0;
-  left: 6px;
-  right: 6px;
-  height: 6px;
-  cursor: s-resize;
-}
-
-.mor-resize-edge.left {
-  top: 6px;
-  bottom: 6px;
-  left: 0;
-  width: 6px;
-  cursor: w-resize;
-}
-
-.mor-resize-edge.right {
-  top: 6px;
-  bottom: 6px;
-  right: 0;
-  width: 6px;
-  cursor: e-resize;
-}
-
-.mor-resize-edge.top-left {
-  top: 0;
-  left: 0;
-  width: 10px;
-  height: 10px;
-  cursor: nw-resize;
-}
-
-.mor-resize-edge.top-right {
-  top: 0;
-  right: 0;
-  width: 10px;
-  height: 10px;
-  cursor: ne-resize;
-}
-
-.mor-resize-edge.bottom-left {
-  bottom: 0;
-  left: 0;
-  width: 10px;
-  height: 10px;
-  cursor: sw-resize;
-}
-
-.mor-resize-edge.bottom-right {
-  bottom: 0;
-  right: 0;
-  width: 10px;
-  height: 10px;
-  cursor: se-resize;
-}
-
-/* ── Menu bar (GTK / Libadwaita-style) ──────────────────────────────── */
+/* ── Shell ──────────────────────────────────────────────────────────── */
 
 .editor-shell {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  height: 100vh;
+  width: 100vw;
   min-height: 0;
   overflow: hidden;
-}
-
-.mor-menu-bar {
-  display: flex;
-  flex-shrink: 0;
-  background-color: var(--editor-bg);
-  border-bottom: 1px solid var(--editor-border);
-  height: 32px;
-  align-items: center;
-  font-family: var(--font-sans), sans-serif;
-  font-size: 13px;
-  color: var(--editor-text);
-  user-select: none;
-  position: relative;
-  z-index: 9999;
-  padding: 0 4px;
-}
-
-.mor-menu-bar > .mor-menu-item {
-  position: relative;
-  height: calc(100% - 6px);
-  margin: 3px 2px;
-  display: flex;
-  align-items: center;
-  padding: 0 10px;
-  cursor: default;
-  color: var(--editor-text);
-  border-radius: var(--radius-sm, 6px);
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.mor-menu-bar > .mor-menu-item:hover {
-  background-color: var(--editor-panel-raised);
-  color: var(--editor-text);
-}
-
-.mor-menu-bar > .mor-menu-brand {
-  padding: 0 6px;
-}
-
-.mor-brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--mor-accent) 28%, transparent);
-  border: 1px solid color-mix(in srgb, var(--mor-accent) 55%, transparent);
-  color: var(--mor-accent);
-  font-family: var(--font-sans), sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.mor-menu-dropdown {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 2px;
-  background-color: var(--editor-panel);
-  border: 1px solid var(--editor-border);
-  border-radius: var(--radius-md, 10px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-  min-width: 220px;
-  padding: 5px;
-  z-index: 10000;
-}
-
-.mor-menu-item:hover .mor-menu-dropdown {
-  display: block;
-}
-
-.mor-menu-dropdown .mor-menu-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: calc(100% - 4px);
-  margin: 2px;
-  padding: 7px 12px;
-  background: transparent;
-  border: none;
-  color: var(--editor-text);
-  font-size: 13px;
-  font-family: var(--font-sans), sans-serif;
-  cursor: pointer;
-  border-radius: var(--radius-sm, 6px);
-  transition: background-color 0.1s ease, color 0.1s ease;
-  box-sizing: border-box;
-  text-align: left;
-}
-
-.mor-menu-dropdown .mor-menu-item:hover:not(.disabled) {
-  background-color: var(--editor-accent);
-  color: #ffffff;
-}
-
-.mor-menu-dropdown .mor-menu-item.disabled {
-  color: var(--editor-muted-2);
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.mor-menu-dropdown .mor-menu-item .shortcut {
-  font-size: 11px;
-  color: var(--editor-muted);
-  margin-left: 24px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-
-.mor-menu-dropdown .mor-menu-item:hover:not(.disabled) .shortcut {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.mor-menu-divider {
-  height: 1px;
-  background-color: var(--editor-border-soft);
-  margin: 5px 4px;
+  background-color: var(--mor-bg);
 }
 
 /* ── App content layout ─────────────────────────────────────────────── */
+
+.pack-row {
+  flex-wrap: wrap;
+  max-height: 4.5rem;
+  overflow-y: auto;
+}
 
 .app-shell {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 280px 1fr 320px;
+  grid-template-columns: 300px 1fr 320px;
   overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(184, 156, 255, 0.16), transparent 32rem),
@@ -507,4 +226,309 @@ small {
 
 li {
   margin-bottom: 0.4rem;
+}
+
+/* ── Living desk: resume, returns, ops ──────────────────────────────── */
+
+.resume-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 1rem;
+  background: color-mix(in srgb, var(--mor-accent) 14%, var(--mor-panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--mor-accent) 40%, transparent);
+  font-family: var(--mor-font), sans-serif;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.resume-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.resume-label {
+  font-weight: 700;
+  color: var(--mor-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+
+.resume-note {
+  color: var(--mor-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 42rem;
+}
+
+.resume-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.strip-btn {
+  font-family: var(--mor-font), sans-serif;
+  font-size: 12px;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--mor-border-light);
+  background: var(--mor-btn);
+  color: var(--mor-text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.strip-btn:hover,
+.strip-btn.primary {
+  border-color: var(--mor-accent);
+  background: color-mix(in srgb, var(--mor-accent) 20%, transparent);
+}
+
+.nag-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: color-mix(in srgb, var(--mor-warning) 18%, var(--mor-panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--mor-warning) 45%, transparent);
+  color: var(--mor-text);
+  font-family: var(--mor-font), sans-serif;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.search-input,
+.text-input {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--mor-border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--mor-text);
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--mor-font), sans-serif;
+  font-size: 13px;
+  margin-bottom: 0.65rem;
+}
+
+.text-input.narrow {
+  max-width: 8rem;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.chip {
+  font-family: var(--mor-font), sans-serif;
+  font-size: 11px;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--mor-border);
+  background: transparent;
+  color: var(--mor-text-muted);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.chip:hover,
+.chip.active {
+  border-color: var(--mor-accent);
+  color: var(--mor-text);
+  background: color-mix(in srgb, var(--mor-accent) 16%, transparent);
+}
+
+.sidebar-stats {
+  display: flex;
+  gap: 0.75rem;
+  font-family: var(--mor-font), sans-serif;
+  font-size: 12px;
+  color: var(--mor-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.prompt-meta {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--mor-text-muted);
+  font-size: 0.8rem;
+  font-family: var(--mor-font), sans-serif;
+}
+
+.sidebar-new {
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.primary-btn {
+  background: color-mix(in srgb, var(--mor-accent) 22%, transparent);
+}
+
+.muted-line {
+  color: var(--mor-text-muted);
+  font-size: 0.9rem;
+  margin: 0.2rem 0 0.6rem;
+  font-family: var(--mor-font), sans-serif;
+}
+
+.scar-tag.scar-won {
+  border-color: color-mix(in srgb, var(--mor-success) 60%, transparent);
+  background: color-mix(in srgb, var(--mor-success) 18%, transparent);
+}
+
+.scar-tag.scar-failed {
+  border-color: color-mix(in srgb, var(--mor-destructive) 60%, transparent);
+  background: color-mix(in srgb, var(--mor-destructive) 16%, transparent);
+}
+
+.scar-tag.scar-ambiguous {
+  border-color: color-mix(in srgb, var(--mor-warning) 60%, transparent);
+  background: color-mix(in srgb, var(--mor-warning) 16%, transparent);
+}
+
+.cousin-warn {
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--mor-warning) 50%, transparent);
+  background: color-mix(in srgb, var(--mor-warning) 12%, transparent);
+  font-family: var(--mor-font), sans-serif;
+  font-size: 12px;
+  color: var(--mor-text);
+  border-radius: var(--radius-sm);
+}
+
+.returns-desk,
+.experiment-box,
+.ops-card {
+  border: 1px solid var(--mor-border);
+  background: var(--mor-btn);
+  padding: 0.9rem;
+  margin: 1rem 0;
+  border-radius: var(--radius-md);
+}
+
+.returns-desk h3,
+.experiment-box h3,
+.ops-card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.returns-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.outcome-btn {
+  font-family: var(--mor-font), sans-serif;
+  font-size: 13px;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--mor-border-light);
+  background: transparent;
+  color: var(--mor-text);
+}
+
+.outcome-btn.won:hover {
+  border-color: var(--mor-success);
+  background: color-mix(in srgb, var(--mor-success) 18%, transparent);
+}
+
+.outcome-btn.failed:hover {
+  border-color: var(--mor-destructive);
+  background: color-mix(in srgb, var(--mor-destructive) 18%, transparent);
+}
+
+.outcome-btn.ambiguous:hover {
+  border-color: var(--mor-warning);
+  background: color-mix(in srgb, var(--mor-warning) 18%, transparent);
+}
+
+.storage-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.status-line {
+  font-family: var(--mor-font), sans-serif;
+  font-size: 12px;
+  color: var(--mor-text-muted);
+  margin-top: 0.5rem;
+}
+
+.ops-panel h2 {
+  font-size: 1.25rem;
+}
+
+.roulette-pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  color: var(--mor-text-muted);
+  margin: 0.6rem 0 0;
+  max-height: 8rem;
+  overflow: auto;
+}
+
+.flora-list,
+.history-list,
+.practice-list {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+  font-family: var(--mor-font), sans-serif;
+  font-size: 12px;
+  color: var(--mor-text-muted);
+}
+
+.flora-list li {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.4rem;
+  list-style: none;
+  margin-left: -1.1rem;
+  margin-bottom: 0.35rem;
+}
+
+.flora-id {
+  color: var(--mor-accent);
+  font-size: 10px;
+}
+
+.flora-w {
+  color: var(--mor-text-muted);
+  font-size: 10px;
+}
+
+.flora-text {
+  color: var(--mor-text);
+}
+
+.empty-state {
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.app-shell {
+  grid-template-columns: 300px 1fr 300px;
 }

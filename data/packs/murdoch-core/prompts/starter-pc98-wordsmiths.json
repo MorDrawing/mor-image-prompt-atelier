@@ -1,0 +1,25 @@
+{
+  "id": "starter-pc98-wordsmiths",
+  "title": "PC98 Dark Academia Wordsmiths",
+  "tier": "SS",
+  "tags": ["pc98", "dark-academia", "atelier", "anime", "wordsmith"],
+  "prompt": "stippled shadows, atelier with exactly three anime wordsmiths gathered around a typewriter, elegant loose-tie man, dark Gibson-girl with corset, reserved scholar with glasses, photocopied manga texture, black background, delicate white linework",
+  "notes": "Core Murdoch image-prompt flavor. Good for landscape banner experiments.",
+  "created_at": "2026-07-27T00:00:00.000Z",
+  "updated_at": "2026-07-27T00:00:00.000Z",
+  "last_outcome": null,
+  "last_note": "",
+  "last_run_at": null,
+  "last_disposition_at": null,
+  "copy_count_without_scar": 0,
+  "needs_rework": false,
+  "storage": "hot",
+  "skeleton": {
+    "subject": "exactly three anime wordsmiths gathered around a typewriter, elegant loose-tie man, dark Gibson-girl with corset, reserved scholar with glasses",
+    "action": "gathered in conversation",
+    "setting": "cluttered atelier"
+  },
+  "fragment_ids": ["flora-stippled", "flora-photocopy", "flora-black-bg", "flora-white-linework"],
+  "pack_id": "murdoch-core",
+  "subject_class": "character"
+}

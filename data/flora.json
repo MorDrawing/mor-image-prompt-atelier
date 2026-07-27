@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "notes": "Micro-prompt flora: tiny craft fragments injected at ship time (max 2 per empty slot). Weights rise with SS/S saves and won outcomes; decay on C-tier or prune.",
+  "fragments": [
+    {
+      "id": "flora-stippled",
+      "text": "stippled shadows",
+      "slot": "lighting",
+      "tags": ["pc98", "murdoch-core"],
+      "style_affinity": ["pc98"],
+      "pool": "murdoch-core",
+      "weight": 12
+    },
+    {
+      "id": "flora-black-bg",
+      "text": "black background",
+      "slot": "medium",
+      "tags": ["pc98", "murdoch-core"],
+      "style_affinity": ["pc98"],
+      "pool": "murdoch-core",
+      "weight": 11
+    },
+    {
+      "id": "flora-white-linework",
+      "text": "delicate white linework",
+      "slot": "medium",
+      "tags": ["pc98", "murdoch-core"],
+      "style_affinity": ["pc98", "pen-ink"],
+      "pool": "murdoch-core",
+      "weight": 10
+    },
+    {
+      "id": "flora-photocopy",
+      "text": "photocopied manga texture",
+      "slot": "medium",
+      "tags": ["pc98", "manga"],
+      "style_affinity": ["pc98"],
+      "pool": "murdoch-core",
+      "weight": 12
+    },
+    {
+      "id": "flora-halftone",
+      "text": "halftone grain",
+      "slot": "medium",
+      "tags": ["pc98"],
+      "style_affinity": ["pc98"],
+      "pool": "murdoch-core",
+      "weight": 7
+    },
+    {
+      "id": "flora-candle",
+      "text": "candlelight and long shadows",
+      "slot": "lighting",
+      "tags": ["dark-academia", "noir"],
+      "style_affinity": ["dark-academia", "noir"],
+      "pool": "murdoch-core",
+      "weight": 9
+    },
+    {
+      "id": "flora-fog-street",
+      "text": "foggy cobblestone street",
+      "slot": "setting",
+      "tags": ["dark-academia", "noir"],
+      "style_affinity": ["dark-academia", "noir"],
+      "pool": "murdoch-core",
+      "weight": 8
+    },
+    {
+      "id": "flora-leather-books",
+      "text": "leather-bound books",
+      "slot": "setting",
+      "tags": ["dark-academia"],
+      "style_affinity": ["dark-academia"],
+      "pool": "murdoch-core",
+      "weight": 6
+    },
+    {
+      "id": "flora-streetlamp",
+      "text": "streetlamp cone of light",
+      "slot": "lighting",
+      "tags": ["noir"],
+      "style_affinity": ["noir"],
+      "pool": "murdoch-core",
+      "weight": 7
+    },
+    {
+      "id": "flora-wet-asphalt",
+      "text": "wet asphalt reflections",
+      "slot": "setting",
+      "tags": ["noir"],
+      "style_affinity": ["noir"],
+      "pool": "murdoch-core",
+      "weight": 6
+    },
+    {
+      "id": "flora-mucha-frame",
+      "text": "art nouveau poster composition, ornate frame",
+      "slot": "composition",
+      "tags": ["mucha"],
+      "style_affinity": ["mucha"],
+      "pool": "experimental",
+      "weight": 9
+    },
+    {
+      "id": "flora-mucha-line",
+      "text": "elegant linework",
+      "slot": "medium",
+      "tags": ["mucha", "pen-ink"],
+      "style_affinity": ["mucha", "pen-ink"],
+      "pool": "experimental",
+      "weight": 8
+    },
+    {
+      "id": "flora-crosshatch",
+      "text": "cross-hatching",
+      "slot": "medium",
+      "tags": ["pen-ink"],
+      "style_affinity": ["pen-ink"],
+      "pool": "murdoch-core",
+      "weight": 7
+    },
+    {
+      "id": "flora-typewriter",
+      "text": "typewriter on a heavy desk",
+      "slot": "setting",
+      "tags": ["atelier"],
+      "style_affinity": ["atelier"],
+      "pool": "murdoch-core",
+      "weight": 7
+    },
+    {
+      "id": "flora-poster-crop",
+      "text": "centered portrait, tight crop",
+      "slot": "composition",
+      "tags": ["portrait"],
+      "style_affinity": [],
+      "pool": "experimental",
+      "weight": 5
+    },
+    {
+      "id": "flora-chiaroscuro",
+      "text": "chiaroscuro lighting",
+      "slot": "lighting",
+      "tags": ["baroque"],
+      "style_affinity": ["oil-baroque"],
+      "pool": "experimental",
+      "weight": 6
+    }
+  ]
+}

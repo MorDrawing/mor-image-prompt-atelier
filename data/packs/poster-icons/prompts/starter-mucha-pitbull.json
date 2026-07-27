@@ -1,0 +1,25 @@
+{
+  "id": "starter-mucha-pitbull",
+  "title": "Mucha Pitbull",
+  "tier": "A",
+  "tags": ["mucha", "art-nouveau", "animal", "poster"],
+  "prompt": "a grey pitbull in the style of Alphonse Mucha, art nouveau poster composition, ornate frame, elegant linework, dignified expression",
+  "notes": "Good example of turning a funny subject into an elevated poster.",
+  "created_at": "2026-07-27T00:00:00.000Z",
+  "updated_at": "2026-07-27T00:00:00.000Z",
+  "last_outcome": null,
+  "last_note": "",
+  "last_run_at": null,
+  "last_disposition_at": null,
+  "copy_count_without_scar": 0,
+  "needs_rework": false,
+  "storage": "hot",
+  "skeleton": {
+    "subject": "a grey pitbull",
+    "action": "dignified expression",
+    "setting": ""
+  },
+  "fragment_ids": ["flora-mucha-frame", "flora-mucha-line"],
+  "pack_id": "poster-icons",
+  "subject_class": "animal"
+}

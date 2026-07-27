@@ -1,0 +1,9 @@
+{
+  "format": "mor-prompt-pack",
+  "version": 1,
+  "id": "inbox",
+  "title": "Inbox",
+  "description": "Default landing pack for new drafts before classification.",
+  "tags": ["inbox", "draft"],
+  "license": "UNLICENSE"
+}

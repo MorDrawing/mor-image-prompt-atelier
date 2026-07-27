@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "next_experiment": {
+    "prompt_id": "starter-pc98-wordsmiths",
+    "action": "try_lighting",
+    "note": "Ship once, then mark won/failed — first scar teaches the desk.",
+    "status": "open",
+    "updated_at": "2026-07-27T00:00:00.000Z"
+  },
+  "experiment_history": []
+}

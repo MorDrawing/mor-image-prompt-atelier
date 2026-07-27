@@ -1,0 +1,9 @@
+{
+  "format": "mor-prompt-pack",
+  "version": 1,
+  "id": "characters",
+  "title": "Characters & Archetypes",
+  "description": "Reusable character skeletons: professors, scholars, noir figures.",
+  "tags": ["character", "archetype", "noir"],
+  "license": "UNLICENSE"
+}
