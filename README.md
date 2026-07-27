@@ -5,6 +5,28 @@ A small desktop app for writing **image prompts** — one paragraph of text for 
 - **Main workspace:** edit the prompt, **Copy**, **Save**
 - **Open folder…:** native picker chooses where files live
 - **Link image…:** optional native picker to attach a result image to that prompt
+- **Shelf (PDC):** Dewey-inspired **Prompt Decimal Classification** to file prompts
+
+## Prompt Decimal Classification (PDC)
+
+A small Dewey-style schedule for *image* prompts (not the full library code):
+
+| Code | Shelf |
+|------|--------|
+| 000 | General & abstract |
+| 100 | People & figures |
+| 200 | Animals & creatures |
+| 300 | Plants & living nature |
+| 400 | Places & landscapes |
+| 500 | Objects & still life |
+| 600 | Architecture & interiors |
+| 700 | Arts, styles & media |
+| 800 | Scenes, story & action |
+| 900 | Mood, light & atmosphere |
+
+Filter the list by hundreds on the left. Assign a code with the class dropdown, or **Suggest** / **Edit → Suggest Classification** (Ctrl+K) from the prompt text. Codes nest by prefix (`700` includes `740`).
+
+Schedule file: [`data/taxonomy.json`](data/taxonomy.json) (override by placing `taxonomy.json` in your workspace folder).
 
 ## Storage (mflash folder)
 

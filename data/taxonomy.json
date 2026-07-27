@@ -1,0 +1,122 @@
+{
+  "name": "Prompt Decimal Classification",
+  "version": 1,
+  "description": "Dewey-inspired shelf marks for AI image prompts. Codes nest by prefix (700 matches 740, 741…).",
+  "classes": [
+    {
+      "code": "000",
+      "label": "General & abstract",
+      "keywords": ["abstract", "concept", "symbol", "diagram", "pattern", "geometric", "surreal"],
+      "children": [
+        { "code": "010", "label": "Symbols & icons", "keywords": ["icon", "logo", "emblem", "sigil", "glyph"] },
+        { "code": "020", "label": "Patterns & textures", "keywords": ["pattern", "texture", "seamless", "ornament", "wallpaper"] },
+        { "code": "030", "label": "Abstract & surreal", "keywords": ["abstract", "surreal", "dreamlike", "impossible", "fractal"] }
+      ]
+    },
+    {
+      "code": "100",
+      "label": "People & figures",
+      "keywords": ["person", "people", "man", "woman", "portrait", "human", "figure", "character"],
+      "children": [
+        { "code": "110", "label": "Portraits", "keywords": ["portrait", "face", "headshot", "bust"] },
+        { "code": "120", "label": "Groups & crowds", "keywords": ["group", "crowd", "couple", "trio", "family"] },
+        { "code": "130", "label": "Archetypes & roles", "keywords": ["professor", "wizard", "knight", "scholar", "detective", "warrior", "witch", "king", "queen"] },
+        { "code": "140", "label": "Fashion & costume", "keywords": ["fashion", "costume", "dress", "outfit", "armor", "kimono", "corset"] },
+        { "code": "150", "label": "Body & gesture", "keywords": ["dance", "pose", "gesture", "silhouette", "anatomy"] }
+      ]
+    },
+    {
+      "code": "200",
+      "label": "Animals & creatures",
+      "keywords": ["animal", "creature", "beast", "bird", "dog", "cat", "dragon", "monster"],
+      "children": [
+        { "code": "210", "label": "Mammals", "keywords": ["dog", "cat", "horse", "wolf", "fox", "bear", "lion", "pitbull", "deer"] },
+        { "code": "220", "label": "Birds", "keywords": ["bird", "eagle", "owl", "crow", "raven", "swan"] },
+        { "code": "230", "label": "Marine life", "keywords": ["fish", "whale", "octopus", "shark", "underwater", "coral"] },
+        { "code": "240", "label": "Insects & small life", "keywords": ["insect", "butterfly", "bee", "spider"] },
+        { "code": "250", "label": "Mythic & fantasy beasts", "keywords": ["dragon", "unicorn", "phoenix", "griffin", "kaiju", "monster"] }
+      ]
+    },
+    {
+      "code": "300",
+      "label": "Plants & living nature",
+      "keywords": ["plant", "flower", "tree", "forest", "garden", "botanical", "foliage"],
+      "children": [
+        { "code": "310", "label": "Flowers & gardens", "keywords": ["flower", "rose", "garden", "bloom", "botanical"] },
+        { "code": "320", "label": "Trees & forests", "keywords": ["tree", "forest", "woods", "oak", "bamboo"] },
+        { "code": "330", "label": "Food & harvest", "keywords": ["food", "fruit", "meal", "feast", "still life food"] }
+      ]
+    },
+    {
+      "code": "400",
+      "label": "Places & landscapes",
+      "keywords": ["landscape", "place", "scenery", "vista", "horizon", "terrain"],
+      "children": [
+        { "code": "410", "label": "City & street", "keywords": ["city", "street", "urban", "alley", "skyline", "metropolis"] },
+        { "code": "420", "label": "Countryside & fields", "keywords": ["countryside", "field", "meadow", "rural", "farm"] },
+        { "code": "430", "label": "Mountains & rock", "keywords": ["mountain", "cliff", "canyon", "peak", "valley"] },
+        { "code": "440", "label": "Water & coast", "keywords": ["ocean", "sea", "lake", "river", "coast", "beach", "waterfall"] },
+        { "code": "450", "label": "Sky & weather", "keywords": ["sky", "clouds", "storm", "rain", "snow", "aurora"] },
+        { "code": "460", "label": "Space & other worlds", "keywords": ["space", "planet", "stars", "galaxy", "alien world", "nebula"] }
+      ]
+    },
+    {
+      "code": "500",
+      "label": "Objects & still life",
+      "keywords": ["object", "still life", "item", "prop", "artifact", "tool"],
+      "children": [
+        { "code": "510", "label": "Everyday objects", "keywords": ["chair", "table", "cup", "book", "typewriter", "phone"] },
+        { "code": "520", "label": "Vehicles", "keywords": ["car", "train", "ship", "plane", "bicycle", "motorcycle"] },
+        { "code": "530", "label": "Weapons & tools", "keywords": ["sword", "gun", "tool", "hammer", "shield"] },
+        { "code": "540", "label": "Treasure & artifacts", "keywords": ["treasure", "relic", "artifact", "jewel", "crown", "amulet"] }
+      ]
+    },
+    {
+      "code": "600",
+      "label": "Architecture & interiors",
+      "keywords": ["architecture", "building", "interior", "room", "house", "temple", "castle"],
+      "children": [
+        { "code": "610", "label": "Exteriors & facades", "keywords": ["facade", "building exterior", "skyscraper", "cottage"] },
+        { "code": "620", "label": "Interiors & rooms", "keywords": ["interior", "room", "atelier", "library", "kitchen", "bedroom", "hall"] },
+        { "code": "630", "label": "Sacred & monumental", "keywords": ["cathedral", "temple", "church", "monument", "ruins", "gothic"] },
+        { "code": "640", "label": "Castles & fantasy builds", "keywords": ["castle", "palace", "tower", "fortress", "dungeon"] }
+      ]
+    },
+    {
+      "code": "700",
+      "label": "Arts, styles & media",
+      "keywords": ["style", "art", "painting", "illustration", "medium", "aesthetic"],
+      "children": [
+        { "code": "710", "label": "Photography", "keywords": ["photo", "photography", "cinematic", "35mm", "bokeh", "lens"] },
+        { "code": "720", "label": "Painting & illustration", "keywords": ["painting", "oil paint", "watercolor", "illustration", "canvas"] },
+        { "code": "730", "label": "Anime, manga & comics", "keywords": ["anime", "manga", "comic", "pc98", "cel shaded", "wordsmith"] },
+        { "code": "740", "label": "Period & movement styles", "keywords": ["art nouveau", "mucha", "baroque", "renaissance", "ukiyo-e", "art deco", "impressionist"] },
+        { "code": "750", "label": "Digital & game art", "keywords": ["pixel", "3d render", "concept art", "game art", "vfx", "cgi"] },
+        { "code": "760", "label": "Print & poster", "keywords": ["poster", "print", "lithograph", "woodcut", "etching", "photocopy"] }
+      ]
+    },
+    {
+      "code": "800",
+      "label": "Scenes, story & action",
+      "keywords": ["scene", "story", "action", "narrative", "moment", "event"],
+      "children": [
+        { "code": "810", "label": "Daily life", "keywords": ["everyday", "cafe", "market", "commute", "home life"] },
+        { "code": "820", "label": "Adventure & quest", "keywords": ["adventure", "quest", "journey", "exploration", "expedition"] },
+        { "code": "830", "label": "Conflict & danger", "keywords": ["battle", "fight", "chase", "danger", "war", "duel"] },
+        { "code": "840", "label": "Ritual & ceremony", "keywords": ["ritual", "ceremony", "wedding", "festival", "parade"] },
+        { "code": "850", "label": "Work & craft", "keywords": ["workshop", "studio", "crafting", "writing", "painting at easel", "smith"] }
+      ]
+    },
+    {
+      "code": "900",
+      "label": "Mood, light & atmosphere",
+      "keywords": ["mood", "atmosphere", "lighting", "tone", "emotion", "ambience"],
+      "children": [
+        { "code": "910", "label": "Light & time of day", "keywords": ["golden hour", "dusk", "dawn", "night", "noon", "moonlight", "neon"] },
+        { "code": "920", "label": "Weather mood", "keywords": ["fog", "mist", "stormy", "rainy", "snowy", "hazy"] },
+        { "code": "930", "label": "Emotional tone", "keywords": ["melancholy", "joyful", "eerie", "cozy", "ominous", "serene", "noir"] },
+        { "code": "940", "label": "Color & palette", "keywords": ["monochrome", "pastel", "vibrant", "muted", "neon colors", "sepia", "black background"] }
+      ]
+    }
+  ]
+}

@@ -168,6 +168,9 @@ pub struct PromptEntry {
     pub image: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub images: Vec<String>,
+    /// Prompt Decimal Classification code (e.g. `740` period styles).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub class_code: Option<String>,
 }
 
 fn default_tier() -> String {
@@ -388,11 +391,13 @@ fn load_from_deck() -> Result<Library, String> {
             notes = c.definition;
         }
 
+        let class_code = crate::taxonomy::class_from_tags(&c.tags);
+        let tags = crate::taxonomy::tags_with_class(&c.tags, None); // strip pdc: into class_code
         let mut entry = PromptEntry {
             id: c.id,
             title: title_from_prompt(&prompt_text),
             tier: "B".into(),
-            tags: c.tags,
+            tags,
             prompt: prompt_text,
             notes,
             created_at: now_iso(),
@@ -410,6 +415,7 @@ fn load_from_deck() -> Result<Library, String> {
             subject_class: None,
             image,
             images: vec![],
+            class_code,
         };
         entry.subject_class = Some(infer_subject_class(&entry));
         lib.prompts.push(entry);
@@ -468,6 +474,12 @@ fn load_from_packs(packs_root: &Path) -> Result<Library, String> {
             if p.subject_class.is_none() {
                 p.subject_class = Some(infer_subject_class(&p));
             }
+            if p.class_code.is_none() {
+                if let Some(c) = crate::taxonomy::class_from_tags(&p.tags) {
+                    p.class_code = Some(c);
+                    p.tags = crate::taxonomy::tags_with_class(&p.tags, None);
+                }
+            }
             lib.prompts.push(p);
         }
     }
@@ -522,7 +534,7 @@ pub fn save_library(lib: &Library) -> Result<(), String> {
             kind: "basic".into(),
             term: p.prompt.clone(),
             definition: p.notes.clone(),
-            tags: p.tags.clone(),
+            tags: crate::taxonomy::tags_with_class(&p.tags, p.class_code.as_deref()),
             media,
             notes: if p.notes.is_empty() {
                 None
@@ -589,6 +601,7 @@ pub fn new_prompt_entry(title: &str, prompt: &str) -> PromptEntry {
         subject_class: None,
         image: None,
         images: vec![],
+        class_code: None,
     };
     entry.subject_class = Some(infer_subject_class(&entry));
     entry
@@ -773,6 +786,7 @@ mod tests {
             subject_class: None,
             image: None,
             images: vec![],
+            class_code: None,
         };
         assert_eq!(infer_subject_class(&p), "animal");
     }

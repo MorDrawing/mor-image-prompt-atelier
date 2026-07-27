@@ -1,0 +1,73 @@
+{
+  "format": "mflash",
+  "version": 3,
+  "id": "atelier-18c627dde9f97dde",
+  "title": "Image Prompt Atelier",
+  "description": "Image prompts for AI generators (Mor Atelier)",
+  "default_term_lang": "en",
+  "default_def_lang": "en",
+  "deck_tags": [
+    "image-prompt",
+    "atelier"
+  ],
+  "cards": [
+    {
+      "id": "starter-pc98-wordsmiths",
+      "kind": "basic",
+      "term": "stippled shadows, atelier with exactly three anime wordsmiths gathered around a typewriter, elegant loose-tie man, dark Gibson-girl with corset, reserved scholar with glasses, photocopied manga texture, black background, delicate white linework",
+      "definition": "Core Murdoch image-prompt flavor. Good for landscape banner experiments.",
+      "tags": [
+        "pc98",
+        "dark-academia",
+        "atelier",
+        "anime",
+        "wordsmith"
+      ],
+      "notes": "Core Murdoch image-prompt flavor. Good for landscape banner experiments."
+    },
+    {
+      "id": "starter-perpending-professor",
+      "kind": "basic",
+      "term": "somberly-dressed perpending professor, brooding at night, foggy cobblestone street, dark academia, faint whiff of danger, pen and ink, delicate linework",
+      "definition": "Useful as a reusable character archetype.",
+      "tags": [
+        "professor",
+        "noir",
+        "scholarly",
+        "danger"
+      ],
+      "media": [
+        {
+          "id": "img-starter-perpending-professor",
+          "type": "image",
+          "role": "result",
+          "src": "packs/characters/media/starter-perpending-professor.svg",
+          "alt": "somberly-dressed perpending professor, brooding …"
+        }
+      ],
+      "notes": "Useful as a reusable character archetype."
+    },
+    {
+      "id": "starter-mucha-pitbull",
+      "kind": "basic",
+      "term": "a grey pitbull in the style of Alphonse Mucha, art nouveau poster composition, ornate frame, elegant linework, dignified expression",
+      "definition": "Good example of turning a funny subject into an elevated poster.",
+      "tags": [
+        "mucha",
+        "art-nouveau",
+        "animal",
+        "poster"
+      ],
+      "media": [
+        {
+          "id": "img-starter-mucha-pitbull",
+          "type": "image",
+          "role": "result",
+          "src": "packs/poster-icons/media/starter-mucha-pitbull.svg",
+          "alt": "a grey pitbull in the style of Alphonse Mucha, a…"
+        }
+      ],
+      "notes": "Good example of turning a funny subject into an elevated poster."
+    }
+  ]
+}

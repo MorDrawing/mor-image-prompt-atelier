@@ -1,6 +1,7 @@
-// ponytail: text workspace + native menu + folder/image pickers.
+// ponytail: text workspace + native menu + folder/image pickers + PDC classes.
 mod catalog;
 mod library;
+mod taxonomy;
 
 use dioxus::desktop::muda::{
     accelerator::{Accelerator, Code, Modifiers},
@@ -17,6 +18,7 @@ use library::{
     import_image_for_prompt, load_library, new_prompt_entry, now_iso, prompt_image_url,
     save_library, set_workspace, workspace_display, Library, PromptEntry,
 };
+use taxonomy::{code_matches_filter, Taxonomy};
 
 static APP_CSS: &str = include_str!("../assets/style.css");
 static APP_ICON_PNG: &[u8] =
@@ -67,6 +69,8 @@ fn build_menu() -> Menu {
         ),
         &item("link_image", "Link Image…", ctrl(Code::KeyL)),
         &item("unlink_image", "Unlink Image", None),
+        &PredefinedMenuItem::separator(),
+        &item("suggest_class", "Suggest Classification", ctrl(Code::KeyK)),
     ])
     .unwrap();
 
@@ -195,16 +199,20 @@ fn App() -> Element {
         let (lib, err) = load_lib();
         (lib, err)
     });
+    let tax = use_signal(Taxonomy::load);
+    let flat_classes = use_hook(|| tax().flatten());
     let mut lib = use_signal(|| initial);
     let mut selected_id = use_signal(|| {
         lib().prompts.first().map(|p| p.id.clone()).unwrap_or_default()
     });
     let mut query = use_signal(String::new);
+    let mut class_filter = use_signal(|| String::from("all"));
     let mut draft = use_signal(String::new);
     let mut draft_image = use_signal(String::new);
+    let mut draft_class = use_signal(String::new);
     let mut folder_label = use_signal(workspace_display);
     let mut status = use_signal(|| {
-        load_error.unwrap_or_else(|| format!("{} prompts", lib().prompts.len()))
+        load_error.unwrap_or_else(|| format!("{} prompts · PDC ready", lib().prompts.len()))
     });
 
     {
@@ -212,6 +220,7 @@ fn App() -> Element {
             if let Some(p) = lib().prompts.iter().find(|p| p.id == selected_id()) {
                 draft.set(p.prompt.clone());
                 draft_image.set(p.image.clone().unwrap_or_default());
+                draft_class.set(p.class_code.clone().unwrap_or_default());
             }
         }
     }
@@ -221,6 +230,7 @@ fn App() -> Element {
         if let Some(p) = lib().prompts.iter().find(|p| p.id == id) {
             draft.set(p.prompt.clone());
             draft_image.set(p.image.clone().unwrap_or_default());
+            draft_class.set(p.class_code.clone().unwrap_or_default());
         }
     };
 
@@ -240,9 +250,11 @@ fn App() -> Element {
                     if let Some(p) = lib().prompts.iter().find(|p| p.id == first) {
                         draft.set(p.prompt.clone());
                         draft_image.set(p.image.clone().unwrap_or_default());
+                        draft_class.set(p.class_code.clone().unwrap_or_default());
                     } else {
                         draft.set(String::new());
                         draft_image.set(String::new());
+                        draft_class.set(String::new());
                     }
                     folder_label.set(workspace_display());
                     status.set(err.unwrap_or_else(|| format!("Opened folder · {n} prompts")));
@@ -262,15 +274,29 @@ fn App() -> Element {
         let id = selected_id();
         let img = draft_image().trim().to_string();
         let image = if img.is_empty() { None } else { Some(img) };
+        let mut class = draft_class().trim().to_string();
+        if class.is_empty() {
+            if let Some(s) = tax().suggest(&text) {
+                class = s.code.clone();
+                draft_class.set(class.clone());
+            }
+        }
+        let class_code = if class.is_empty() { None } else { Some(class.clone()) };
+        let class_note = class_code
+            .as_ref()
+            .map(|c| tax().label_for(c))
+            .unwrap_or_default();
 
         if let Some(idx) = l.prompts.iter().position(|p| p.id == id) {
             l.prompts[idx].prompt = text.clone();
             l.prompts[idx].title = title_from_prompt(&text);
             l.prompts[idx].image = image;
+            l.prompts[idx].class_code = class_code;
             l.prompts[idx].updated_at = now_iso();
         } else {
             let mut entry = new_prompt_entry(&title_from_prompt(&text), &text);
             entry.image = image;
+            entry.class_code = class_code;
             selected_id.set(entry.id.clone());
             l.prompts.insert(0, entry);
         }
@@ -279,7 +305,11 @@ fn App() -> Element {
             Ok(()) => {
                 let n = l.prompts.len();
                 lib.set(l);
-                status.set(format!("Saved deck.json · {n} prompts"));
+                if class_note.is_empty() {
+                    status.set(format!("Saved · {n} prompts"));
+                } else {
+                    status.set(format!("Saved · {class_note} · {n} prompts"));
+                }
             }
             Err(e) => status.set(e),
         }
@@ -288,8 +318,20 @@ fn App() -> Element {
     let mut new_prompt = move || {
         draft.set(String::new());
         draft_image.set(String::new());
+        draft_class.set(String::new());
         selected_id.set(String::new());
         status.set("New prompt — write, then Save".into());
+    };
+
+    let mut suggest_class = move || {
+        let text = draft();
+        match tax().suggest(&text) {
+            Some(s) => {
+                draft_class.set(s.code.clone());
+                status.set(format!("Suggested {} · {}", s.code, s.path));
+            }
+            None => status.set("No class match — pick one from the shelf list".into()),
+        }
     };
 
     let mut copy_prompt = move || {
@@ -386,13 +428,15 @@ fn App() -> Element {
         "copy_prompt" => copy_prompt(),
         "link_image" => pick_image(),
         "unlink_image" => clear_image(),
+        "suggest_class" => suggest_class(),
         _ => {}
     });
 
     let q = query();
+    let cf = class_filter();
     let visible: Vec<PromptEntry> = {
         let l = lib();
-        if q.trim().is_empty() {
+        let base: Vec<PromptEntry> = if q.trim().is_empty() {
             l.prompts
                 .iter()
                 .filter(|p| p.storage != "compost")
@@ -401,6 +445,7 @@ fn App() -> Element {
         } else {
             let sq = SearchQuery {
                 text: q.clone(),
+                class_prefix: if cf == "all" { None } else { Some(cf.clone()) },
                 limit: 200,
                 ..Default::default()
             };
@@ -412,6 +457,18 @@ fn App() -> Element {
                 .iter()
                 .filter(|p| ids.iter().any(|id| id == &p.id))
                 .cloned()
+                .collect()
+        };
+        if cf == "all" || cf.is_empty() {
+            base
+        } else {
+            base.into_iter()
+                .filter(|p| {
+                    p.class_code
+                        .as_deref()
+                        .map(|c| code_matches_filter(c, &cf))
+                        .unwrap_or(false)
+                })
                 .collect()
         }
     };
@@ -439,9 +496,41 @@ fn App() -> Element {
                 p { class: "folder-path", title: "{folder_label}", "{folder_label}" }
                 input {
                     class: "search",
-                    placeholder: "Search…",
+                    placeholder: "Search prompts…",
                     value: "{query}",
                     oninput: move |e| query.set(e.value()),
+                }
+                div { class: "class-shelf",
+                    span { class: "hint shelf-title", "Shelf (PDC)" }
+                    div { class: "class-chips",
+                        button {
+                            class: if cf == "all" { "chip active" } else { "chip" },
+                            onclick: move |_| class_filter.set("all".into()),
+                            "All"
+                        }
+                        for root in tax().roots() {
+                            {
+                                let code = root.code.clone();
+                                let label = root.label.clone();
+                                let active = cf == code;
+                                rsx! {
+                                    button {
+                                        class: if active { "chip active" } else { "chip" },
+                                        title: "{label}",
+                                        onclick: move |_| class_filter.set(code.clone()),
+                                        "{code}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    p { class: "hint shelf-hint",
+                        if cf == "all" {
+                            "000–900 · Dewey-style marks for image prompts"
+                        } else {
+                            "{tax().label_for(&cf)}"
+                        }
+                    }
                 }
                 nav { class: "list",
                     for p in visible {
@@ -450,6 +539,7 @@ fn App() -> Element {
                             let active = selected_id() == id;
                             let thumb = prompt_image_url(&p);
                             let line = preview(&p.prompt, 80);
+                            let mark = p.class_code.clone().unwrap_or_default();
                             rsx! {
                                 button {
                                     class: if active { "row active" } else { "row" },
@@ -459,7 +549,12 @@ fn App() -> Element {
                                     } else {
                                         div { class: "thumb empty" }
                                     }
-                                    span { class: "row-text", "{line}" }
+                                    div { class: "row-body",
+                                        if !mark.is_empty() {
+                                            span { class: "row-class", "{mark}" }
+                                        }
+                                        span { class: "row-text", "{line}" }
+                                    }
                                 }
                             }
                         }
@@ -479,6 +574,29 @@ fn App() -> Element {
                     placeholder: "a grey pitbull in the style of Alphonse Mucha, art nouveau poster…",
                     value: "{draft}",
                     oninput: move |e| draft.set(e.value()),
+                }
+                label { class: "hint", "Classification (Prompt Decimal)" }
+                div { class: "class-row",
+                    select {
+                        class: "class-select",
+                        value: "{draft_class}",
+                        onchange: move |e| draft_class.set(e.value()),
+                        option { value: "", "— unfiled —" }
+                        for c in flat_classes.iter() {
+                            {
+                                let code = c.code.clone();
+                                let pad = "· ".repeat(c.depth);
+                                let label = format!("{}{} {}", pad, c.code, c.label);
+                                rsx! {
+                                    option { value: "{code}", "{label}" }
+                                }
+                            }
+                        }
+                    }
+                    button { class: "btn", onclick: move |_| suggest_class(), "Suggest" }
+                }
+                if !draft_class().is_empty() {
+                    p { class: "hint", "{tax().label_for(&draft_class())}" }
                 }
                 div { class: "image-actions",
                     button { class: "btn", onclick: move |_| pick_image(), "Link image…" }

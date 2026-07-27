@@ -26,20 +26,21 @@ pub fn rebuild(lib: &Library) -> Result<(), String> {
             .prepare(
                 "INSERT INTO prompts (
                     id, pack_id, title, tier, storage, tags, prompt, notes,
-                    last_outcome, needs_rework, subject_class, updated_at
-                ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+                    last_outcome, needs_rework, subject_class, class_code, updated_at
+                ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
             )
             .map_err(|e| format!("prepare insert: {e}"))?;
         let mut ins_fts = tx
             .prepare(
                 "INSERT INTO prompts_fts (
-                    id, title, tags, prompt, notes, subject_class, pack_id
-                ) VALUES (?1,?2,?3,?4,?5,?6,?7)",
+                    id, title, tags, prompt, notes, subject_class, class_code, pack_id
+                ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
             )
             .map_err(|e| format!("prepare fts insert: {e}"))?;
         for p in &lib.prompts {
             let tags = p.tags.join(" ");
             let subject_class = infer_subject_class(p);
+            let class_code = p.class_code.as_deref().unwrap_or("");
             ins.execute(params![
                 p.id,
                 p.pack_id,
@@ -52,6 +53,7 @@ pub fn rebuild(lib: &Library) -> Result<(), String> {
                 p.last_outcome.as_deref().unwrap_or(""),
                 if p.needs_rework { 1 } else { 0 },
                 subject_class,
+                class_code,
                 p.updated_at,
             ])
             .map_err(|e| format!("insert {}: {e}", p.id))?;
@@ -63,6 +65,7 @@ pub fn rebuild(lib: &Library) -> Result<(), String> {
                     p.prompt,
                     p.notes,
                     subject_class,
+                    class_code,
                     p.pack_id,
                 ])
                 .map_err(|e| format!("fts insert {}: {e}", p.id))?;
@@ -88,6 +91,7 @@ fn init_schema(conn: &Connection) -> Result<(), String> {
             last_outcome TEXT NOT NULL,
             needs_rework INTEGER NOT NULL,
             subject_class TEXT NOT NULL,
+            class_code TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
         -- Standalone FTS (external content tables fight JOIN + MATCH aliases).
@@ -98,6 +102,7 @@ fn init_schema(conn: &Connection) -> Result<(), String> {
             prompt,
             notes,
             subject_class,
+            class_code,
             pack_id UNINDEXED
         );
         CREATE INDEX idx_prompts_pack ON prompts(pack_id);
@@ -105,6 +110,7 @@ fn init_schema(conn: &Connection) -> Result<(), String> {
         CREATE INDEX idx_prompts_storage ON prompts(storage);
         CREATE INDEX idx_prompts_outcome ON prompts(last_outcome);
         CREATE INDEX idx_prompts_class ON prompts(subject_class);
+        CREATE INDEX idx_prompts_pdc ON prompts(class_code);
         "#,
     )
     .map_err(|e| format!("catalog schema: {e}"))
@@ -118,6 +124,8 @@ pub struct SearchQuery {
     pub storage: Option<String>,
     pub outcome: Option<String>,
     pub subject_class: Option<String>,
+    /// PDC prefix filter (e.g. `700` matches `740`). Applied in-memory after query.
+    pub class_prefix: Option<String>,
     pub needs_rework: Option<bool>,
     pub limit: usize,
 }
@@ -280,6 +288,16 @@ pub fn filter_in_memory(lib: &Library, q: &SearchQuery) -> Vec<String> {
     if let Some(sc) = &q.subject_class {
         ids.retain(|p| infer_subject_class(p) == *sc);
     }
+    if let Some(prefix) = &q.class_prefix {
+        if prefix != "all" && !prefix.is_empty() {
+            ids.retain(|p| {
+                p.class_code
+                    .as_deref()
+                    .map(|c| crate::taxonomy::code_matches_filter(c, prefix))
+                    .unwrap_or(false)
+            });
+        }
+    }
     if let Some(nr) = q.needs_rework {
         ids.retain(|p| p.needs_rework == nr);
     }
@@ -290,6 +308,10 @@ pub fn filter_in_memory(lib: &Library, q: &SearchQuery) -> Vec<String> {
                 || p.notes.to_lowercase().contains(&text)
                 || p.tags.iter().any(|t| t.to_lowercase().contains(&text))
                 || p.pack_id.to_lowercase().contains(&text)
+                || p.class_code
+                    .as_deref()
+                    .map(|c| c.to_lowercase().contains(&text))
+                    .unwrap_or(false)
         });
     }
     ids.into_iter().map(|p| p.id.clone()).collect()
